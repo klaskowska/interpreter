@@ -1,0 +1,17 @@
+
+2. W mainie nie podajemy argumentów
+3. Program to deklaracja zmiennych globalnych, deklaracja funkcji oraz wywołanie funkcji main
+4. Deklarowanie zmiennych globalnych 
+6. Nie można zadeklarować funkcji o tej samej nazwie, ale zmienne można i wtedy nadpisuje wartość. 
+7. Wartość warunków logicznych to tylko true/false (nie mogą być liczbami ani napisami).
+8. Main oraz funkcje typu void nie muszą mieć return
+9. Defaultowo przekazywanie parametrów przez wartość, a z & przez zmienną. 
+10. Przekazywanie przez zmienną: używając ref przed nazwą parameru.
+11. W domknięciach funkcji, funkcje nie mogą się nazywać tak, jak już kiedyś zostały zadeklarowane (przesłanianie jedynie zmiennych)
+12. Nie ma przesłaniania identyfikatorów funkcji, więc przekazywanie funkcji jako referencję działa tak samo jak przez wartość
+
+
+
+Do 30 pkt:
+12. statyczne typowanie - 4
+15. krotki - 2

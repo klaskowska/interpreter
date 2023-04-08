@@ -1,0 +1,66 @@
+-- Programs
+entrypoints Prog ;
+Prog.       Prog ::= [DeclDef] ;
+
+-- Declarations and definitions
+VarGlobDef. DeclDef ::= VarDecl ;
+FuncDef.    DeclDef ::= Type Ident "(" [Arg] ")" Block ;
+separator DeclDef "" ;
+
+VarDecl.    VarDecl ::= Type Item ";" ;
+NoInit.     Item ::= Ident ;
+Init.       Item ::= Ident "=" Expr ;
+ArgVal.     Arg ::= Type Ident ;
+ArgRef.     Arg ::= Type "&" Ident ;
+separator Arg "," ;
+
+-- Statements
+Block.      Block ::= "{" [Stmt] "}" ;
+BlockStmt.  Stmt ::= Block ;
+VarLocDef.  Stmt ::= VarDecl ;
+Ass.        Stmt ::= Ident "=" Expr ";" ;
+If.         Stmt ::= "if" "(" Expr ")" Stmt ;
+IfElse.     Stmt ::= "if" "(" Expr ")" Stmt "else" Stmt ;
+While.      Stmt ::= "while" "(" Expr ")" Stmt ;
+CallFunc.   Stmt ::= Ident "(" [Expr] ")" ";" ;
+StmtExpr.   Stmt ::= Expr ";" ;
+Ret.        Stmt ::= "return" Expr ";" ;
+RetVoid.    Stmt ::= "return" ";" ;
+separator Stmt "" ;
+
+-- Expressions
+EVar.       Expr6 ::= Ident ;
+EInt.       Expr6 ::= Integer ;
+ETrue.      Expr6 ::= "True" ;
+EFalse.     Expr6 ::= "False" ;
+EString.    Expr6 ::= String ;
+Neg.        Expr5 ::= "-" Expr6 ;
+Not.        Expr5 ::= "!" Expr6 ;
+EMul.       Expr5 ::= Expr5 MulOp Expr6 ;
+EAdd.       Expr4 ::= Expr4 AddOp Expr5 ;
+ERel.       Expr3 ::= Expr3 RelOp Expr4 ;
+EAnd.       Expr2 ::= Expr2 "&&" Expr1 ;
+EOr.        Expr1 ::= Expr1 "||" Expr2 ;
+EBracket.   Expr ::= "(" Expr ")" ;
+
+separator Expr ",";
+coercions  Expr 6 ;
+
+-- Operators
+Plus.      AddOp ::= "+" ;
+Minus.     AddOp ::= "-" ;
+Times.     MulOp ::= "*" ;
+Div.       MulOp ::= "/" ;
+Mod.       MulOp ::= "%" ;
+LTH.       RelOp ::= "<" ;
+LE.        RelOp ::= "<=" ;
+GTH.       RelOp ::= ">" ;
+GE.        RelOp ::= ">=" ;
+EQU.       RelOp ::= "==" ;
+NE.        RelOp ::= "!=" ;
+
+-- Types 
+Int.       Type ::= "int" ;
+Str.       Type ::= "string" ;
+Bool.      Type ::= "boolean" ;
+Void.      Type ::= "void" ;
