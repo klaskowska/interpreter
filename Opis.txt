@@ -9,7 +9,12 @@
 10. Przekazywanie przez zmienną: używając ref przed nazwą parameru.
 11. W domknięciach funkcji, funkcje nie mogą się nazywać tak, jak już kiedyś zostały zadeklarowane (przesłanianie jedynie zmiennych)
 12. Nie ma przesłaniania identyfikatorów funkcji, więc przekazywanie funkcji jako referencję działa tak samo jak przez wartość
-
+13. Funkcje globalne można deklarowaća albo int f(int a)..., albo function(int<int>) f = ...
+14. Instrukcje do danego scope'u zawsze otoczone klamrami.
+15. Domknięcia funkcji tworzymy jako przypisanie do zmiennej lambdy.
+16. Nawiasy w wyrażeniach arytmetycznych to "[]"
+17. Obliczanie wyrażeń bez przypisania: poprzedzając "calc"
+18. If zakończony endif
 
 
 Do 30 pkt:
