@@ -15,6 +15,9 @@
 16. Nawiasy w wyrażeniach arytmetycznych to "[]"
 17. Obliczanie wyrażeń bez przypisania: poprzedzając "calc"
 18. If zakończony endif
+19. Nie ma zmiennych globalnych
+20. print_int, print_str
+21. można nazwać funkcje print_int, print_str, ale to nie nadpisze wbudowanych instrukcji
 
 
 Do 30 pkt:

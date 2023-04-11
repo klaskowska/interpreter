@@ -1,15 +1,8 @@
 -- Programs
 entrypoints Prog ;
-Prog.       Prog ::= [DeclDef] ;
-
--- Declarations and definitions
-VarGlobDef. DeclDef ::= VarDecl ;
-FuncDef.    DeclDef ::= Type Ident "(" [Arg] ")" Block ;
-separator DeclDef "" ;
-
-VarDecl.    VarDecl ::= Type Item ";" ;
-NoInit.     Item ::= Ident ;
-Init.       Item ::= Ident "=" Expr ;
+Prog.       Prog ::= [FuncDef] ;
+FuncDef.    FuncDef ::= Type Ident "(" [Arg] ")" Block ;
+separator FuncDef "" ;
 ArgVal.     Arg ::= Type Ident ;
 ArgRef.     Arg ::= Type "&" Ident ;
 separator Arg "," ;
@@ -17,14 +10,18 @@ separator Arg "," ;
 -- Statements
 Block.      Block ::= "{" [Stmt] "}" ;
 BlockStmt.  Stmt ::= Block ;
-VarLocDef.  Stmt ::= VarDecl ;
+VarDef.     Stmt ::= Type Item ";" ;
+NoInit.     Item ::= Ident ;
+Init.       Item ::= Ident "=" Expr ;
 Ass.        Stmt ::= Ident "=" Expr ";" ;
 If.         Stmt ::= "if" "(" Expr ")" Stmt "endif" ;
 IfElse.     Stmt ::= "if" "(" Expr ")" Stmt "else" Stmt "endif" ;
-While.      Stmt ::= "while" "(" Expr ")" Stmt ;
+While.      Stmt ::= "while" "(" Expr ")" Stmt "endwhile" ;
 CallFunc.   Stmt ::= Ident "(" [Expr] ")" ";" ;
 StmtExpr.   Stmt ::= "calc" Expr ";" ;
-Print.      Stmt ::= "print" "(" Expr ")" ";" ;
+PrintInt.   Stmt ::= "print_int" "[" Expr "]" ";" ;
+PrintStr.   Stmt ::= "print_str" "[" Expr "]" ";" ;
+SEmpty.     Stmt ::= ";" ;
 Ret.        Stmt ::= "return" Expr ";" ;
 RetVoid.    Stmt ::= "return" ";" ;
 separator Stmt "" ;
@@ -35,8 +32,7 @@ EInt.       Expr6 ::= Integer ;
 ETrue.      Expr6 ::= "True" ;
 EFalse.     Expr6 ::= "False" ;
 EString.    Expr6 ::= String ;
-EBracket.   Expr6 ::= "[" Expr "]" ;
-ECallFunc.  Expr6 ::= Ident "(" [Expr] ")" ";" ;
+ECallFunc.  Expr6 ::= Ident "(" [Expr] ")" ;
 ELambda.    Expr6 ::= "lambda" "(" [Arg] ")" "->" Type Block ;
 Neg.        Expr5 ::= "-" Expr6 ;
 Not.        Expr5 ::= "!" Expr6 ;
@@ -70,3 +66,7 @@ Void.      Type1 ::= "void" ;
 FuncType.  Type ::= "function" "<" Type ">" "(" [Type] ")" ;
 separator Type "," ;
 coercions Type 1 ;
+
+-- comments
+comment "//" ;
+comment "/*" "*/" ;

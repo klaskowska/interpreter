@@ -1,0 +1,43 @@
+int f1(int a, int b) {
+    int c = ((b + 4) * a / 2 - 7) % 3;
+    print_str["c = "];
+    print_int[c];
+    return c;
+}
+
+string f2(string s) {
+    return s + "bbb";
+}
+
+boolean f3(int a, int b, int c) {
+    boolean x = a <= b && c != a;
+    boolean y = c < b && c == a;
+    return !(x || y);
+}
+
+void f4() {
+    ;
+    print_str["ccc"];
+}
+/*
+comment 1
+comment 2
+*/
+
+int main() {
+    int n = f1(1, 7);
+    print_int[n];
+
+    string s1 = "aaa";
+    print_str[f2(s1)];
+
+    // comment 3
+
+    f3(6, 8, 1);
+
+    f4();
+
+    calc 2+2;
+
+    return 0;
+}

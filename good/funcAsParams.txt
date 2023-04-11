@@ -1,0 +1,24 @@
+int f1(function<boolean>(int, int) g, int a) {
+    boolean res = g(a, 2 * a);
+    if (res)
+        return 5;
+    else
+        return 10;
+    endif
+}
+
+function<boolean>(int, string) f2(int a) {
+    return lambda(int & x, string s) -> boolean {
+        print_str[s];
+        return x == a;
+    };
+}
+
+void f3(int a, string s) {
+    function<int>(int) f_loc = lambda(int x) -> int {
+        print_str[s];
+        return 2 * x;
+    };
+
+    print_int[f_loc(a)];
+}
