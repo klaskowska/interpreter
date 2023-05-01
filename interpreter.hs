@@ -1,6 +1,6 @@
 -- TODO
 -- 1. Generalize arithmetic operations
-
+-- 2. Maybe implement return as a throwing exception to break or add another Val type as NotReturned and then use if
 
 import Prelude hiding (lookup)
 import Data.Map
@@ -36,8 +36,8 @@ runEvalMonad v env locs = (runExceptT (runReaderT (runStateT v locs) env))
 alloc :: Locs a -> Loc
 alloc locs = size locs
 
-putStrLnM :: String -> (StateT (Locs a) (ReaderT Env (ExceptT Err IO))) ()
-putStrLnM s = lift $ (lift $ (lift $ putStrLn s));
+putStrM :: String -> (StateT (Locs a) (ReaderT Env (ExceptT Err IO))) ()
+putStrM s = lift $ (lift $ (lift $ putStr s));
 
 -- if `isDiv` and `aExpr2` evaluates to 0 then throws exception
 evalArithm :: (Int -> Int -> Int) -> Expr -> Expr -> Bool -> EvalMonad Val
@@ -67,8 +67,6 @@ evalBool op bExpr1 bExpr2 = do {
 
 evalExpr :: Expr -> EvalMonad Val
 
--- arithmetic expressions
-
 evalExpr (EVar x) = do {
   env <- ask;
   locs <- get;
@@ -77,6 +75,8 @@ evalExpr (EVar x) = do {
       (Just l) -> return (locs ! l);
       _ -> throwError(noVarMsg x);
 }
+
+-- arithmetic expressions
 
 evalExpr (EInt n) = return (VInt (fromIntegral n))
 
@@ -126,3 +126,60 @@ evalExpr (EOr bExpr1 bExpr2) = evalBool (||) bExpr1 bExpr2
 -- string expressions
 
 evalExpr (EString s) = return (VString s)
+
+
+
+
+--------------- Functions evaluating statements ---------------
+evalStmt :: Stmt -> EvalMonad Val
+
+evalStmt RetVoid = return VVoid
+
+evalStmt (Ret expr) = do {
+  x <- evalExpr expr;
+  return x;
+}
+
+evalStmt SEmpty = return VVoid
+
+evalStmt (PrintStr sExpr) = do {
+  (VString s) <- evalExpr sExpr;
+  putStrM s;
+  return VVoid;
+}
+
+evalStmt (PrintInt aExpr) = do {
+  (VInt n) <- evalExpr aExpr;
+  putStrM (show n);
+  return VVoid;
+}
+
+evalStmt (StmtExpr expr) = do {
+  evalExpr expr;
+  return VVoid;
+}
+
+evalStmt (While bExpr stmt) = do {
+  (VBool b) <- evalExpr bExpr;
+  if b
+    then do {
+      evalStmt stmt;
+      evalStmt (While bExpr stmt);
+    }
+    else
+      return VVoid;
+}
+
+evalStmt (IfElse bExpr stmt1 stmt2) = do {
+  (VBool b) <- evalExpr bExpr;
+  if b
+    then evalStmt stmt1;
+    else evalStmt stmt2;
+} 
+
+evalStmt (If bExpr stmt) = do {
+  (VBool b) <- evalExpr bExpr;
+  if b
+    then evalStmt stmt;
+    else return VVoid;  
+}
