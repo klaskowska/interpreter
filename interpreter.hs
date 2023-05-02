@@ -1,7 +1,11 @@
 -- TODO
 -- 1. Generalize arithmetic operations
 -- 2. Maybe implement return as a throwing exception to break or add another Val type as NotReturned and then use if
+-- 3. Remeber to check if NotInit matches assinging in type checker
+-- 4. Maybe use type Env = (Env, Locs)
 
+-- QUESTIONS
+-- 1. Do I have to check if x is in the env if I have already checked it during static typing?
 import Prelude hiding (lookup)
 import Data.Map
 import Control.Monad.Reader
@@ -18,7 +22,7 @@ noVarMsg x = "Unknown variable " ++ (show x) ++ " at some place"
 divZeroMsg = "Divide by zero"
 
 -- Types used in interpreter
-data Val = VInt Int | VBool Bool | VString String | VVoid
+data Val = VInt Int | VBool Bool | VString String | VVoid | NotInit Type
 type Var = Ident
 type Err = String
 type Loc = Int
@@ -26,18 +30,18 @@ type Env = Map Var Loc
 type Locs a = Map Loc a
 
 -- A monad used to evaluate expressions
-type EvalMonad a = (StateT (Locs a) (ReaderT Env (ExceptT Err IO))) a
+type EvalMonad a = (StateT (Env, Locs a) (ExceptT Err IO)) a
 
 -- Exacutes expression evaluation and returns unpacked value
-runEvalMonad :: (EvalMonad a) -> Env -> Locs a -> IO (Either Err (a, Locs a))
-runEvalMonad v env locs = (runExceptT (runReaderT (runStateT v locs) env))
+runEvalMonad :: (EvalMonad a) -> Env -> Locs a -> IO (Either Err (a, (Env, Locs a)))
+runEvalMonad v env locs = (runExceptT (runStateT v (env, locs)))
 
 ----------------------- Helper functions -----------------------
 alloc :: Locs a -> Loc
 alloc locs = size locs
 
-putStrM :: String -> (StateT (Locs a) (ReaderT Env (ExceptT Err IO))) ()
-putStrM s = lift $ (lift $ (lift $ putStr s));
+putStrM :: String -> (StateT (Env, Locs a) (ExceptT Err IO)) ()
+putStrM s = lift $ (lift $ putStr s);
 
 -- if `isDiv` and `aExpr2` evaluates to 0 then throws exception
 evalArithm :: (Int -> Int -> Int) -> Expr -> Expr -> Bool -> EvalMonad Val
@@ -68,8 +72,7 @@ evalBool op bExpr1 bExpr2 = do {
 evalExpr :: Expr -> EvalMonad Val
 
 evalExpr (EVar x) = do {
-  env <- ask;
-  locs <- get;
+  (env, locs) <- get;
   let lMaybe = lookup x env in
     case lMaybe of
       (Just l) -> return (locs ! l);
@@ -133,7 +136,7 @@ evalExpr (EString s) = return (VString s)
 --------------- Functions evaluating statements ---------------
 evalStmt :: Stmt -> EvalMonad Val
 
-evalStmt RetVoid = return VVoid
+evalStmt RetVoid = return VVoid;
 
 evalStmt (Ret expr) = do {
   x <- evalExpr expr;
@@ -165,6 +168,7 @@ evalStmt (While bExpr stmt) = do {
     then do {
       evalStmt stmt;
       evalStmt (While bExpr stmt);
+      return VVoid;
     }
     else
       return VVoid;
@@ -182,4 +186,32 @@ evalStmt (If bExpr stmt) = do {
   if b
     then evalStmt stmt;
     else return VVoid;  
+}
+
+evalStmt (Ass x expr) = do {
+  (env, _) <- get;
+  let lMaybe = lookup x env in
+    case lMaybe of
+      (Just l) -> do {
+        n <- evalExpr expr;
+        (env1, locs1) <- get;   -- read env again in case of changes during expr evaluation
+        put (env1, Data.Map.insert l n locs1);
+        return VVoid;
+      }
+      _ -> throwError(noVarMsg x);
+}
+
+evalStmt (VarDef t (NoInit x)) = do {
+  (env, locs) <- get;
+  newLoc <- return (alloc locs);
+  put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (NotInit t) locs);
+  return VVoid;
+}
+
+evalStmt (VarDef t (Init x expr)) = do {
+  v <- evalExpr expr;
+  (env, locs) <- get;
+  newLoc <- return (alloc locs);
+  put (Data.Map.insert x newLoc env, Data.Map.insert newLoc v locs);
+  return VVoid;
 }
