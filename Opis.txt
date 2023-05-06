@@ -1,16 +1,39 @@
-Składnia tego języka programowania jest wzorowana na składni języka C++. 
-Poniżej opisuję najważniejsze oraz nietypowe konstrukcje.
-1. Program składa się z deklaracji funkcji. Jeśli zostanie zadeklarowana funkcja `int main()`, to jej ciało się wykona.
-2. Dla funkcji `int main()` nie podajemy argumentów. Ta funkcja wymaga zwrócenia liczby.
-3. Nie ma możliwości definiowania zmiennych globalnych. 
-4. Funkcje globalne muszą mieć unikalne nazwy.
-5. Wartość warunków logicznych to tylko true/false (nie mogą być liczbami ani napisami).
-6. Funkcje typu `void` nie muszą zwracać (nie muszą mieć `return`).
-7. Przekazywanie parametrów przez wartość standardowo, a przez zmienną z użyciem `&` (jak w C++). 
-8. Aby zadeklarować funkcję lokalnie, trzeba przypisać lambdę do zmiennej odpowiedniego typu (typ: `function<Type>[Type]`, lambda: `lambda([Arg]) -> Type Block`).
-9. Obliczanie wyrażeń bez przypisania na zmienną: poprzedzając obliczenie słowem `calc`.
-10. Konstrukcje if, if else zakończone słowem `endif`. Konstrukcja `while` zakończona słowem `endwhile`.
-11. Wypisywanie wartości na wyjście przy pomocy instrukcji `print_int[Expr]` dla liczb oraz `print_str[Expr]` dla napisów.
-12. Można zadeklarować funkcje o nazwie `print_int`, `print_str`, ale to nie nadpisze wbudowanych instrukcji.
+Opis języka programowania, dla którego planuję zaimplementować interpreter
+
+Jest to język imperatywny w składni opartej o C++. 
+Program w tym języku składa się z deklaracji funkcji. Jeśli zostanie zadeklarowana funkcja `int main()`, to jej ciało się wykona.
+Wartości wyrażeń są typów: `int`, `bool`, `string`, `function<Type>([Type])`.
+Jest dostępne obliczanie działań arytmetycznych oraz porównań, a także przypisywanie wartości wyrażeń do zmiennych.
+Można wypisywać wartości napisów oraz liczb na standardowe wyjście.
+Dostępne są instrukcje `if`, `if else` oraz `while`.
+Definiując funkcję musimy określić jej typ - funkcja może zwracać wartość dowolnego z 4 typów. Jeżeli funkcja nie ma nic zwracać, to określamy jej typ jako `void`.
+Argumenty do funkcji możemy przekazywać przez wartość lub przez zmienną. Argumenty również mogą być dowolnego z 4 typów.
+Definicje funkcji można dowolnie zagnieżdżać, zachowując poprawność statycznego wiązania identyfikatorów.
+Można tworzyć funkcje anonimowe i przekazywać je jako wartość bądź przypisywać na zmienną odpowiedniego typu.
+Dostępne są także domknięcia funkcji.
+Błędy wykonania są obsługiwane poprzez wypisanie komunikatu oraz zatrzymanie interpretera.
+Język ten jest statycznie typowany.
 
 
+Poniżej opisuję najważniejsze oraz nietypowe konstrukcje. 
+1. Dla funkcji `int main()` nie podajemy argumentów. Ta funkcja wymaga zwrócenia liczby.
+2. Nie ma możliwości definiowania zmiennych globalnych. 
+3. Funkcje globalne muszą mieć unikalne nazwy.
+4. Wartość warunków logicznych to tylko true/false (nie mogą być liczbami ani napisami).
+5. Funkcje typu `void` nie muszą zwracać (nie muszą mieć `return`).
+6. Przekazywanie parametrów przez wartość standardowo, a przez zmienną z użyciem `&` (jak w C++). 
+7. Aby zadeklarować funkcję lokalnie, trzeba przypisać lambdę do zmiennej odpowiedniego typu (typ: `function<Type>([Type])`, lambda: `lambda([Arg]) -> Type Block`).
+8. Obliczanie wyrażeń bez przypisania na zmienną: poprzedzając obliczenie słowem `calc`.
+9. Konstrukcje if, if else zakończone słowem `endif`. Konstrukcja `while` zakończona słowem `endwhile`.
+10. Wypisywanie wartości na wyjście przy pomocy instrukcji `print_int[Expr]` dla liczb oraz `print_str[Expr]` dla napisów.
+11. Można zadeklarować funkcje o nazwie `print_int`, `print_str`, ale to nie nadpisze wbudowanych instrukcji.
+
+
+
+
+
+Nowe spostrzeżenia
+1. Funkcje globalne nie muszą być w kolejności "chronologicznej", ale lokalne już muszą być.
+2. Nazwy funkcji globalnych nie mogą się powtarzać.
+3. Wszystkie inne nazwy zmiennych mogą się powtarzać, przy czym następuje nadpisanie typu.
+4. Przy wywoływaniu funkcji najpierw odczytywana i zapamiętywana jest definicja funkcji, następnie obliczane są wartości podanych argumentów od lewej do prawej, a na koniec wykonuje się ciało funkcji zapamiętanej w chwili wywoływania.

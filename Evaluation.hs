@@ -35,10 +35,10 @@ type Env = Map Var Loc
 type Locs a = Map Loc a
 
 -- A monad used to evaluate expressions
-type EvalMonad a = (StateT (Env, Locs a) (ExceptT Err IO)) a
+type EvalMonad a b = (StateT (Env, Locs a) (ExceptT Err IO)) b
 
 -- Exacutes expression evaluation and returns unpacked value
-runEvalMonad :: (EvalMonad a) -> Env -> Locs a -> IO (Either Err (a, (Env, Locs a)))
+runEvalMonad :: (EvalMonad a b) -> Env -> Locs a -> IO (Either Err (b, (Env, Locs a)))
 runEvalMonad v env locs = (runExceptT (runStateT v (env, locs)))
 
 ----------------------- Helper functions -----------------------
@@ -49,7 +49,7 @@ putStrM :: String -> (StateT (Env, Locs a) (ExceptT Err IO)) ()
 putStrM s = lift $ (lift $ putStr s);
 
 -- if `isDiv` and `aExpr2` evaluates to 0 then throws exception
-evalArithm :: (Int -> Int -> Int) -> Expr -> Expr -> Bool -> EvalMonad Val
+evalArithm :: (Int -> Int -> Int) -> Expr -> Expr -> Bool -> EvalMonad Val Val
 evalArithm op aExpr1 aExpr2 isDiv = do {
   (VInt n1) <- evalExpr aExpr1;
   (VInt n2) <- evalExpr aExpr2;
@@ -58,23 +58,31 @@ evalArithm op aExpr1 aExpr2 isDiv = do {
     else return (VInt (op n1 n2));
 }
 
-evalRel :: (Int -> Int -> Bool) -> Expr -> Expr -> EvalMonad Val
+evalRel :: (Int -> Int -> Bool) -> Expr -> Expr -> EvalMonad Val Val
 evalRel op aExpr1 aExpr2 = do {
   (VInt n1) <- evalExpr aExpr1;
   (VInt n2) <- evalExpr aExpr2;
   return (VBool (op n1 n2));
 }
 
-evalBool :: (Bool -> Bool -> Bool) -> Expr -> Expr -> EvalMonad Val
+evalBool :: (Bool -> Bool -> Bool) -> Expr -> Expr -> EvalMonad Val Val
 evalBool op bExpr1 bExpr2 = do {
   (VBool b1) <- evalExpr bExpr1;
   (VBool b2) <- evalExpr bExpr2;
   return (VBool (op b1 b2));
 }
 
+initVar :: Ident -> Expr -> EvalMonad Val (Env, Locs Val)
+initVar x expr = do {
+  v <- evalExpr expr;
+  (env, locs) <- get;
+  newLoc <- return (alloc locs);
+  return (Data.Map.insert x newLoc env, Data.Map.insert newLoc v locs);
+}
+
 --------------- Functions evaluating expressions ---------------
 
-evalExpr :: Expr -> EvalMonad Val
+evalExpr :: Expr -> EvalMonad Val Val
 
 evalExpr (EVar x) = do {
   (env, locs) <- get;
@@ -138,7 +146,7 @@ evalExpr (EString s) = return (VString s)
 
 
 --------------- Functions evaluating statements ---------------
-evalStmt :: Stmt -> EvalMonad Val
+evalStmt :: Stmt -> EvalMonad Val Val
 
 evalStmt RetVoid = return VVoid;
 
@@ -165,7 +173,13 @@ evalStmt (StmtExpr expr) = do {
   evalExpr expr;
   return VVoid;
 }
-
+{-
+evalStmt (CallFunc f args) = do {
+  (VFunc (FuncDef t id argsDef block, (fEnv, fLocs))) <- evalExpr (EVar f);
+  argVals <- evalMultiExpr args; 
+  return VVoid;
+}
+-}
 evalStmt (While bExpr stmt) = do {
   (VBool b) <- evalExpr bExpr;
   if b
@@ -212,11 +226,9 @@ evalStmt (VarDef t (NoInit x)) = do {
   return VVoid;
 }
 
-evalStmt (VarDef t (Init x expr)) = do {
-  v <- evalExpr expr;
-  (env, locs) <- get;
-  newLoc <- return (alloc locs);
-  put (Data.Map.insert x newLoc env, Data.Map.insert newLoc v locs);
+evalStmt (VarDef _ (Init x expr)) = do {
+  newEnvLocs <- initVar x expr;
+  put (newEnvLocs);
   return VVoid;
 }
 
@@ -234,7 +246,7 @@ evalStmt (BlockStmt (Block stmts)) = do {
 
 --------------- Functions evaluating programs ---------------
 
-addFuncDef :: FuncDef -> EvalMonad Val
+addFuncDef :: FuncDef -> EvalMonad Val Val
 addFuncDef (FuncDef t x args block) = do {
   (env, locs) <- get;
   if member x env
@@ -250,7 +262,7 @@ addFuncDef (FuncDef t x args block) = do {
 
 -- Sets the same global environment for every global function
 -- We assume that a type of every element in Locs is VFunc 
-setGlobalEnvs :: EvalMonad Val
+setGlobalEnvs :: EvalMonad Val Val
 setGlobalEnvs = do {
   (env, locs) <- get;
   let newLocs = Data.Map.map (\v -> 
@@ -262,7 +274,7 @@ setGlobalEnvs = do {
   return VVoid; 
 }
 
-evalMain :: EvalMonad Val
+evalMain :: EvalMonad Val Val
 evalMain = do {
   (env, locs) <- get;
   case lookup (Ident "main") env of
@@ -276,7 +288,7 @@ evalMain = do {
         throwError(badMainTypeMsg t);  
 }
 
-evalProg :: Prog -> EvalMonad Val
+evalProg :: Prog -> EvalMonad Val Val
 evalProg (Prog funcDefs) = do {
   case funcDefs of
     [] -> do {
