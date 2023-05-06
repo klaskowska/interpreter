@@ -27,7 +27,8 @@ badMainTypeMsg t = "The type of main function is not Int. Given type: " ++ (show
 argsMainMsg args = "There were given some arguments in main function definition. Given arguments: " ++ (show args)
 
 -- Types used in interpreter
-data Val = VInt Int | VBool Bool | VString String | VVoid | VFunc (FuncDef, (ProgState Val)) | NotInit Type
+type Func = ([Arg], Block)
+data Val = VInt Int | VBool Bool | VString String | VVoid | VFunc (Func, (ProgState Val)) | NotInit Type
 type Var = Ident
 type Err = String
 type Loc = Int
@@ -114,6 +115,15 @@ evalExpr (EVar x) = do {
     _ -> throwError(noVarMsg x);
 }
 
+evalExpr (ECallFunc f args) = do {
+  evalStmt (CallFunc f args);
+}
+
+evalExpr (ELambda args t block) = do {
+  state <- get;
+  return (VFunc ((args, block), state));
+}
+
 -- arithmetic expressions
 
 evalExpr (EInt n) = return (VInt (fromIntegral n))
@@ -198,7 +208,7 @@ evalStmt (StmtExpr expr) = do {
 }
 
 evalStmt (CallFunc f args) = do {
-  (VFunc (FuncDef t id argsDef block, fState)) <- evalExpr (EVar f);
+  (VFunc ((argsDef, block), fState)) <- evalExpr (EVar f);
   vals <- evalMultiExpr args [];
   globalState <- get;
   put fState;
@@ -274,14 +284,15 @@ evalStmt (BlockStmt (Block stmts)) = do {
 
 --------------- Functions evaluating programs ---------------
 
+-- TypeChecker potentially checks if main function has a proper signature
 addFuncDef :: FuncDef -> EvalMonad Val Val
-addFuncDef (FuncDef t x args block) = do {
+addFuncDef (FuncDef t f args block) = do {
   (env, store) <- get;
-  if member x env
+  if member f env
     then throwError(repeatedFunMsg);
     else do {
       newLoc <- return (alloc store);
-      put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (VFunc (FuncDef t x args block, (empty, empty))) store);
+      put (Data.Map.insert f newLoc env, Data.Map.insert newLoc (VFunc ((args, block), (empty, empty))) store);
       return VVoid;
     }
 }
@@ -307,13 +318,19 @@ evalMain = do {
   (env, store) <- get;
   case lookup (Ident "main") env of
     Nothing -> return VVoid;
-    (Just l) -> case lookup l store of
+    (Just l) -> 
+      let (Just (VFunc ((_, block), _))) = lookup l store in
+        evalStmt (BlockStmt block);
+{-
+-- may be useful for typeChecker      
+      case lookup l store of
       (Just (VFunc (FuncDef Int _ [] block, _))) ->
         evalStmt (BlockStmt block);
       (Just (VFunc (FuncDef Int _ args _, _))) ->
         throwError(argsMainMsg args);
       (Just (VFunc (FuncDef t _ _ _, _))) ->
         throwError(badMainTypeMsg t);  
+-}
 }
 
 evalProg :: Prog -> EvalMonad Val Val
