@@ -1,0 +1,10 @@
+bool f(bool a) {
+    bool b;
+    return a;
+}
+
+int main() {
+    f(True);
+    f(False);
+    return 0;
+}

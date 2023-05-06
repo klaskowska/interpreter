@@ -1,10 +1,10 @@
-boolean f1(int a, int b) {
+bool f1(int a, int b) {
     if (a < b)
         return true;
     endif
 }
 
-boolean f2(int a, int b) {
+bool f2(int a, int b) {
     if (a < b) {
         if (2 * a > b)
             return true;

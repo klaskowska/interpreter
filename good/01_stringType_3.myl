@@ -1,0 +1,9 @@
+string f(string a) {
+    string b;
+    return a;
+}
+
+int main() {
+    f("This is string");
+    return 0;
+}

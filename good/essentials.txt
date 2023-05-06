@@ -9,9 +9,9 @@ string f2(string s) {
     return s + "bbb";
 }
 
-boolean f3(int a, int b, int c) {
-    boolean x = a <= b && c != a;
-    boolean y = c < b && c == a;
+bool f3(int a, int b, int c) {
+    bool x = a <= b && c != a;
+    bool y = c < b && c == a;
     return !(x || y);
 }
 
