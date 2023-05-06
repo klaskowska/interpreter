@@ -6,10 +6,11 @@ TMP_ERR=$(mktemp)
 for file in ./good/*.myl
 do
 
-echo "Run test: " 
-echo ${file%.myl}
+echo "Run test:" ${file%.myl}
 
-./interpreter $file > $TMP_OUT 2 > $TMP_ERR
+chmod +x $file
+
+./interpreter "$file" > $TMP_OUT $2 > $TMP_ERR
 
 cat $TMP_ERR
 
