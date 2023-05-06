@@ -1,11 +1,8 @@
 -- TODO
 -- 1. Generalize arithmetic operations
--- 2. Maybe implement return as a throwing exception to break or add another Val type as NotReturned and then use if
 -- 3. Remeber to check if NotInit matches assinging in type checker
--- 4. Maybe use type Env = (Env, Store)
+-- 5. Think about checking if return has been used
 
--- QUESTIONS
--- 1. Do I have to check if x is in the env if I have already checked it during static typing?
 module Evaluation where
 
 import Prelude hiding (lookup)
@@ -28,7 +25,9 @@ argsMainMsg args = "There were given some arguments in main function definition.
 
 -- Types used in interpreter
 type Func = ([Arg], Block)
-data Val = VInt Int | VBool Bool | VString String | VVoid | VFunc (Func, (ProgState Val)) | NotInit Type
+data Val = VInt Int | VBool Bool | VString String | VFunc (Func, (ProgState Val)) | NotInit Type | VVoid
+-- Object which can be returned by statement
+data RetObj = RVal Val | NoRet
 type Var = Ident
 type Err = String
 type Loc = Int
@@ -116,7 +115,8 @@ evalExpr (EVar x) = do {
 }
 
 evalExpr (ECallFunc f args) = do {
-  evalStmt (CallFunc f args);
+  (RVal v) <- evalStmt (CallFunc f args);
+  return v;
 }
 
 evalExpr (ELambda args t block) = do {
@@ -179,32 +179,32 @@ evalExpr (EString s) = return (VString s)
 
 
 --------------- Functions evaluating statements ---------------
-evalStmt :: Stmt -> EvalMonad Val Val
+evalStmt :: Stmt -> EvalMonad Val RetObj
 
-evalStmt RetVoid = return VVoid;
+evalStmt RetVoid = return (RVal VVoid)
 
 evalStmt (Ret expr) = do {
   x <- evalExpr expr;
-  return x;
+  return (RVal x);
 }
 
-evalStmt SEmpty = return VVoid
+evalStmt SEmpty = return NoRet
 
 evalStmt (PrintStr sExpr) = do {
   (VString s) <- evalExpr sExpr;
   putStrM s;
-  return VVoid;
+  return NoRet;
 }
 
 evalStmt (PrintInt aExpr) = do {
   (VInt n) <- evalExpr aExpr;
   putStrM (show n);
-  return VVoid;
+  return NoRet;
 }
 
 evalStmt (StmtExpr expr) = do {
   evalExpr expr;
-  return VVoid;
+  return NoRet;
 }
 
 evalStmt (CallFunc f args) = do {
@@ -215,19 +215,20 @@ evalStmt (CallFunc f args) = do {
   setParams argsDef vals;
   returnedVal <- evalStmt (BlockStmt block);
   put globalState;
-  return VVoid;
+  return NoRet;
 }
 
 evalStmt (While bExpr stmt) = do {
   (VBool b) <- evalExpr bExpr;
   if b
     then do {
-      evalStmt stmt;
-      evalStmt (While bExpr stmt);
-      return VVoid;
+      retObj <- evalStmt stmt;
+      case retObj of
+        NoRet -> evalStmt (While bExpr stmt);
+        otherwise -> return retObj;
     }
     else
-      return VVoid;
+      return NoRet;
 }
 
 evalStmt (IfElse bExpr stmt1 stmt2) = do {
@@ -241,7 +242,7 @@ evalStmt (If bExpr stmt) = do {
   (VBool b) <- evalExpr bExpr;
   if b
     then evalStmt stmt;
-    else return VVoid;  
+    else return NoRet;  
 }
 
 evalStmt (Ass x expr) = do {
@@ -252,7 +253,7 @@ evalStmt (Ass x expr) = do {
         n <- evalExpr expr;
         (env1, store1) <- get;   -- read env again in case of changes during expr evaluation
         put (env1, Data.Map.insert l n store1);
-        return VVoid;
+        return NoRet;
       }
       _ -> throwError(noVarMsg x);
 }
@@ -261,22 +262,21 @@ evalStmt (VarDef t (NoInit x)) = do {
   (env, store) <- get;
   newLoc <- return (alloc store);
   put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (NotInit t) store);
-  return VVoid;
+  return NoRet;
 }
 
 evalStmt (VarDef _ (Init x expr)) = do {
   newState <- initVar x expr;
   put (newState);
-  return VVoid;
+  return NoRet;
 }
 
-evalStmt (BlockStmt (Block stmts)) = do {
-  case stmts of
-    [] -> return VVoid;
-    (hStmt:tStmts) -> do {
-      evalStmt hStmt;
-      evalStmt (BlockStmt (Block tStmts));
-    }
+evalStmt (BlockStmt (Block [])) = return NoRet;
+evalStmt (BlockStmt (Block (stmtH:stmtT))) = do {
+  retObj <- evalStmt stmtH;
+  case retObj of
+    NoRet -> evalStmt (BlockStmt (Block stmtT));
+    otherwise -> return retObj;
 }
 
 
@@ -285,7 +285,7 @@ evalStmt (BlockStmt (Block stmts)) = do {
 --------------- Functions evaluating programs ---------------
 
 -- TypeChecker potentially checks if main function has a proper signature
-addFuncDef :: FuncDef -> EvalMonad Val Val
+addFuncDef :: FuncDef -> EvalMonad Val ()
 addFuncDef (FuncDef t f args block) = do {
   (env, store) <- get;
   if member f env
@@ -293,7 +293,7 @@ addFuncDef (FuncDef t f args block) = do {
     else do {
       newLoc <- return (alloc store);
       put (Data.Map.insert f newLoc env, Data.Map.insert newLoc (VFunc ((args, block), (empty, empty))) store);
-      return VVoid;
+      return ();
     }
 }
 
@@ -301,7 +301,7 @@ addFuncDef (FuncDef t f args block) = do {
 
 -- Sets the same global environment for every global function
 -- We assume that a type of every element in Store is VFunc 
-setGlobalEnvs :: EvalMonad Val Val
+setGlobalEnvs :: EvalMonad Val ()
 setGlobalEnvs = do {
   (env, store) <- get;
   let newState = Data.Map.map (\v -> 
@@ -310,14 +310,14 @@ setGlobalEnvs = do {
         ) store
     in
     put (env, newState);
-  return VVoid; 
+  return (); 
 }
 
-evalMain :: EvalMonad Val Val
+evalMain :: EvalMonad Val RetObj
 evalMain = do {
   (env, store) <- get;
   case lookup (Ident "main") env of
-    Nothing -> return VVoid;
+    Nothing -> return NoRet;
     (Just l) -> 
       let (Just (VFunc ((_, block), _))) = lookup l store in
         evalStmt (BlockStmt block);
@@ -333,7 +333,7 @@ evalMain = do {
 -}
 }
 
-evalProg :: Prog -> EvalMonad Val Val
+evalProg :: Prog -> EvalMonad Val RetObj
 evalProg (Prog funcDefs) = do {
   case funcDefs of
     [] -> do {
