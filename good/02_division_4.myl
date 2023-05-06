@@ -1,0 +1,8 @@
+int div(int a, int b) {
+    return a / b;
+}
+
+int main(){
+    int res = div(7, 2);
+    print_int[res];
+}

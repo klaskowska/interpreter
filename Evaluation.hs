@@ -1,7 +1,7 @@
 -- TODO
 -- 1. Generalize arithmetic operations
 -- 3. Remeber to check if NotInit matches assinging in type checker
--- 5. Think about checking if return has been used
+-- 5. Think about checking if return has been used (for now there is a haskell error when nothing is returned)
 
 module Evaluation where
 
@@ -215,7 +215,7 @@ evalStmt (CallFunc f args) = do {
   setParams argsDef vals;
   returnedVal <- evalStmt (BlockStmt block);
   put globalState;
-  return NoRet;
+  return returnedVal;
 }
 
 evalStmt (While bExpr stmt) = do {

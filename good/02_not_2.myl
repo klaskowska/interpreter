@@ -1,0 +1,16 @@
+bool not(bool a) {
+    return !a;
+}
+
+int main() {
+    bool notTrue = not(True);
+    bool notFalse = not(False);
+
+    if (notTrue)
+        print_str["NOT OK"];
+    endif
+
+    if (notFalse)
+        print_str["OK"];
+    endif
+}

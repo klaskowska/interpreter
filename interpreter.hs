@@ -19,7 +19,12 @@ runInterpreter filename = do
       return (Left err)
       --exitFailure
     (Ok tree) -> do   -- tree to będzie Abstract Syntax Tree dla programu, czyli tree ::  Program
-      runEvalMonad (evalProg tree) (empty, empty)
+      progRes <- runEvalMonad (evalProg tree) (empty, empty);
+      case progRes of
+        (Left progErr) -> do
+          hPutStrLn stderr progErr;
+          return (Left progErr);
+        otherwise -> return progRes;
 
 -- filename = "good/01-01-int-type.prg"
 -- s = "int main() {print_int[1];}"

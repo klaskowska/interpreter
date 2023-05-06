@@ -1,0 +1,8 @@
+int negate(int a) {
+    return -a;
+}
+
+int main() {
+    int neg = negate(5);
+    print_int[neg];
+}
