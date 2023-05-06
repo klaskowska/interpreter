@@ -1,0 +1,14 @@
+int main() {
+    f1();
+}
+
+void f1() {
+    f2();
+    print_str["def\n"];
+    return;
+}
+
+void f2() {
+    print_str["abc\n"];
+    return;
+}
