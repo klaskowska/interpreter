@@ -72,12 +72,34 @@ evalBool op bExpr1 bExpr2 = do {
   return (VBool (op b1 b2));
 }
 
+-- TODO: check if this function is used in more than one place
 initVar :: Ident -> Expr -> EvalMonad Val (Env, Locs Val)
 initVar x expr = do {
   v <- evalExpr expr;
   (env, locs) <- get;
   newLoc <- return (alloc locs);
   return (Data.Map.insert x newLoc env, Data.Map.insert newLoc v locs);
+}
+
+evalMultiExpr :: [Expr] -> [Val] -> EvalMonad Val [Val]
+evalMultiExpr [] vals = return (reverse vals)
+evalMultiExpr (exprH:exprT) vals = do {
+  v <- evalExpr exprH;
+  evalMultiExpr exprT (v:vals);
+}
+
+-- Adds variables with given values to the current environment
+setParams :: [Arg] -> [Val] -> EvalMonad Val ()
+setParams [] [] = return ();
+setParams (argH:argT) (valH:valT) = do {
+  case argH of
+    (ArgVal _ x) -> do {
+      (env, locs) <- get;
+      newLoc <- return (alloc locs);
+      put (Data.Map.insert x newLoc env, Data.Map.insert newLoc valH locs);
+      setParams argT valT;
+    }
+    (ArgRef _ x) -> throwError "Not implemented yet"
 }
 
 --------------- Functions evaluating expressions ---------------
@@ -173,13 +195,17 @@ evalStmt (StmtExpr expr) = do {
   evalExpr expr;
   return VVoid;
 }
-{-
+
 evalStmt (CallFunc f args) = do {
   (VFunc (FuncDef t id argsDef block, (fEnv, fLocs))) <- evalExpr (EVar f);
-  argVals <- evalMultiExpr args; 
+  vals <- evalMultiExpr args [];
+  globalEnvLocs <- get;
+  setParams argsDef vals;
+  returnedVal <- evalStmt (BlockStmt block);
+  put globalEnvLocs;
   return VVoid;
 }
--}
+
 evalStmt (While bExpr stmt) = do {
   (VBool b) <- evalExpr bExpr;
   if b
