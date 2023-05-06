@@ -2,7 +2,7 @@
 -- 1. Generalize arithmetic operations
 -- 2. Maybe implement return as a throwing exception to break or add another Val type as NotReturned and then use if
 -- 3. Remeber to check if NotInit matches assinging in type checker
--- 4. Maybe use type Env = (Env, Locs)
+-- 4. Maybe use type Env = (Env, Store)
 
 -- QUESTIONS
 -- 1. Do I have to check if x is in the env if I have already checked it during static typing?
@@ -27,25 +27,26 @@ badMainTypeMsg t = "The type of main function is not Int. Given type: " ++ (show
 argsMainMsg args = "There were given some arguments in main function definition. Given arguments: " ++ (show args)
 
 -- Types used in interpreter
-data Val = VInt Int | VBool Bool | VString String | VVoid | VFunc (FuncDef, (Env, Locs Val)) | NotInit Type
+data Val = VInt Int | VBool Bool | VString String | VVoid | VFunc (FuncDef, (ProgState Val)) | NotInit Type
 type Var = Ident
 type Err = String
 type Loc = Int
 type Env = Map Var Loc
-type Locs a = Map Loc a
+type Store a = Map Loc a
+type ProgState a = (Env, Store a)
 
 -- A monad used to evaluate expressions
-type EvalMonad a b = (StateT (Env, Locs a) (ExceptT Err IO)) b
+type EvalMonad a b = (StateT (ProgState a) (ExceptT Err IO)) b
 
 -- Exacutes expression evaluation and returns unpacked value
-runEvalMonad :: (EvalMonad a b) -> Env -> Locs a -> IO (Either Err (b, (Env, Locs a)))
-runEvalMonad v env locs = (runExceptT (runStateT v (env, locs)))
+runEvalMonad :: (EvalMonad a b) -> ProgState a -> IO (Either Err (b, (ProgState a)))
+runEvalMonad v progState = (runExceptT (runStateT v progState))
 
 ----------------------- Helper functions -----------------------
-alloc :: Locs a -> Loc
-alloc locs = size locs
+alloc :: Store a -> Loc
+alloc store = size store
 
-putStrM :: String -> (StateT (Env, Locs a) (ExceptT Err IO)) ()
+putStrM :: String -> (StateT (ProgState a) (ExceptT Err IO)) ()
 putStrM s = lift $ (lift $ putStr s);
 
 -- if `isDiv` and `aExpr2` evaluates to 0 then throws exception
@@ -73,12 +74,12 @@ evalBool op bExpr1 bExpr2 = do {
 }
 
 -- TODO: check if this function is used in more than one place
-initVar :: Ident -> Expr -> EvalMonad Val (Env, Locs Val)
+initVar :: Ident -> Expr -> EvalMonad Val (Env, Store Val)
 initVar x expr = do {
   v <- evalExpr expr;
-  (env, locs) <- get;
-  newLoc <- return (alloc locs);
-  return (Data.Map.insert x newLoc env, Data.Map.insert newLoc v locs);
+  (env, store) <- get;
+  newLoc <- return (alloc store);
+  return (Data.Map.insert x newLoc env, Data.Map.insert newLoc v store);
 }
 
 evalMultiExpr :: [Expr] -> [Val] -> EvalMonad Val [Val]
@@ -94,9 +95,9 @@ setParams [] [] = return ();
 setParams (argH:argT) (valH:valT) = do {
   case argH of
     (ArgVal _ x) -> do {
-      (env, locs) <- get;
-      newLoc <- return (alloc locs);
-      put (Data.Map.insert x newLoc env, Data.Map.insert newLoc valH locs);
+      (env, store) <- get;
+      newLoc <- return (alloc store);
+      put (Data.Map.insert x newLoc env, Data.Map.insert newLoc valH store);
       setParams argT valT;
     }
     (ArgRef _ x) -> throwError "Not implemented yet"
@@ -107,9 +108,9 @@ setParams (argH:argT) (valH:valT) = do {
 evalExpr :: Expr -> EvalMonad Val Val
 
 evalExpr (EVar x) = do {
-  (env, locs) <- get;
+  (env, store) <- get;
   case lookup x env of
-    (Just l) -> return (locs ! l);
+    (Just l) -> return (store ! l);
     _ -> throwError(noVarMsg x);
 }
 
@@ -197,12 +198,13 @@ evalStmt (StmtExpr expr) = do {
 }
 
 evalStmt (CallFunc f args) = do {
-  (VFunc (FuncDef t id argsDef block, (fEnv, fLocs))) <- evalExpr (EVar f);
+  (VFunc (FuncDef t id argsDef block, fState)) <- evalExpr (EVar f);
   vals <- evalMultiExpr args [];
-  globalEnvLocs <- get;
+  globalState <- get;
+  put fState;
   setParams argsDef vals;
   returnedVal <- evalStmt (BlockStmt block);
-  put globalEnvLocs;
+  put globalState;
   return VVoid;
 }
 
@@ -238,23 +240,23 @@ evalStmt (Ass x expr) = do {
     case lMaybe of
       (Just l) -> do {
         n <- evalExpr expr;
-        (env1, locs1) <- get;   -- read env again in case of changes during expr evaluation
-        put (env1, Data.Map.insert l n locs1);
+        (env1, store1) <- get;   -- read env again in case of changes during expr evaluation
+        put (env1, Data.Map.insert l n store1);
         return VVoid;
       }
       _ -> throwError(noVarMsg x);
 }
 
 evalStmt (VarDef t (NoInit x)) = do {
-  (env, locs) <- get;
-  newLoc <- return (alloc locs);
-  put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (NotInit t) locs);
+  (env, store) <- get;
+  newLoc <- return (alloc store);
+  put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (NotInit t) store);
   return VVoid;
 }
 
 evalStmt (VarDef _ (Init x expr)) = do {
-  newEnvLocs <- initVar x expr;
-  put (newEnvLocs);
+  newState <- initVar x expr;
+  put (newState);
   return VVoid;
 }
 
@@ -274,12 +276,12 @@ evalStmt (BlockStmt (Block stmts)) = do {
 
 addFuncDef :: FuncDef -> EvalMonad Val Val
 addFuncDef (FuncDef t x args block) = do {
-  (env, locs) <- get;
+  (env, store) <- get;
   if member x env
     then throwError(repeatedFunMsg);
     else do {
-      newLoc <- return (alloc locs);
-      put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (VFunc (FuncDef t x args block, (empty, empty))) locs);
+      newLoc <- return (alloc store);
+      put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (VFunc (FuncDef t x args block, (empty, empty))) store);
       return VVoid;
     }
 }
@@ -287,25 +289,25 @@ addFuncDef (FuncDef t x args block) = do {
 
 
 -- Sets the same global environment for every global function
--- We assume that a type of every element in Locs is VFunc 
+-- We assume that a type of every element in Store is VFunc 
 setGlobalEnvs :: EvalMonad Val Val
 setGlobalEnvs = do {
-  (env, locs) <- get;
-  let newLocs = Data.Map.map (\v -> 
+  (env, store) <- get;
+  let newState = Data.Map.map (\v -> 
         case v of
-          (VFunc (f, _)) -> VFunc (f, (env, locs))
-        ) locs
+          (VFunc (f, _)) -> VFunc (f, (env, store))
+        ) store
     in
-    put (env, newLocs);
+    put (env, newState);
   return VVoid; 
 }
 
 evalMain :: EvalMonad Val Val
 evalMain = do {
-  (env, locs) <- get;
+  (env, store) <- get;
   case lookup (Ident "main") env of
     Nothing -> return VVoid;
-    (Just l) -> case lookup l locs of
+    (Just l) -> case lookup l store of
       (Just (VFunc (FuncDef Int _ [] block, _))) ->
         evalStmt (BlockStmt block);
       (Just (VFunc (FuncDef Int _ args _, _))) ->
