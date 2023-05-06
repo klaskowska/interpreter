@@ -1,0 +1,26 @@
+void f1() {
+    print_str["abc\n"];
+    return;
+}
+
+int f2() {
+    print_str["def\n"];
+    return 5;
+}
+
+string f3() {
+    print_str["ghi\n"];
+    return "";
+}
+
+bool f4() {
+    print_str["jkl\n"];
+    return True;
+}
+
+int main() {
+    f1();
+    f2();
+    f3();
+    f4();
+}

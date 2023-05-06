@@ -1,0 +1,24 @@
+int main() {
+    if (True) {
+        print_str ["OK 1\n"];
+        print_str ["OK 2\n"];
+    }
+    else {
+        print_str["Should not be printed"];
+        print_str["Should not be printed"];
+    }
+    endif
+
+    if (False)
+        print_str["Should not be printed"];
+    else
+        print_str ["OK 3\n"];
+    endif
+
+    bool x = 2 > 1;
+    if (x)
+        print_str ["OK 4\n"];
+    else
+        print_str["Should not be printed"];
+    endif
+}

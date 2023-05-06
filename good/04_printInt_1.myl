@@ -1,0 +1,6 @@
+int main() {
+    int x = 3;
+    print_int[2];
+    print_int[x];
+    print_int[x + 2];
+}

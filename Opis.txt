@@ -37,3 +37,5 @@ Nowe spostrzeżenia
 2. Nazwy funkcji globalnych nie mogą się powtarzać.
 3. Wszystkie inne nazwy zmiennych mogą się powtarzać, przy czym następuje nadpisanie typu.
 4. Przy wywoływaniu funkcji najpierw odczytywana i zapamiętywana jest definicja funkcji, następnie obliczane są wartości podanych argumentów od lewej do prawej, a na koniec wykonuje się ciało funkcji zapamiętanej w chwili wywoływania.
+5. W operacjach AND i OR zawsze oblicza wartości obu składników (nawet jeśli zna wynik po obliczeniu tylko jednego składnika).
+6. Funkcje void też muszą mieć return.

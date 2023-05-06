@@ -1,0 +1,36 @@
+int main() {
+
+// Integers
+    int n1;
+    int n2 = 2;
+    print_int[n2];
+    n1 = 5;
+    n2 = 6;
+    print_int[n1];
+    print_int[n2];
+
+// Strings
+    string s1;
+    string s2 = "abc";
+    print_str[s2];
+    s1 = "def";
+    s2 = "ghi";
+    print_str[s1];
+    print_str[s2];
+
+// Booleans
+    bool b1;
+    bool b2 = True;
+    if (b2)
+        print_str["OK"];
+    endif
+    b1 = False;
+    b2 = False;
+    if (b2)
+        print_str["Should not be printed"];
+    endif
+    if (b2)
+        print_str["Should not be printed"];
+    endif    
+
+}

@@ -115,7 +115,13 @@ evalExpr (EVar x) = do {
 }
 
 evalExpr (ECallFunc f args) = do {
-  (RVal v) <- evalStmt (CallFunc f args);
+  (VFunc ((argsDef, block), fState)) <- evalExpr (EVar f);
+  vals <- evalMultiExpr args [];
+  globalState <- get;
+  put fState;
+  setParams argsDef vals;
+  (RVal v) <- evalStmt (BlockStmt block);
+  put globalState;
   return v;
 }
 
@@ -208,14 +214,8 @@ evalStmt (StmtExpr expr) = do {
 }
 
 evalStmt (CallFunc f args) = do {
-  (VFunc ((argsDef, block), fState)) <- evalExpr (EVar f);
-  vals <- evalMultiExpr args [];
-  globalState <- get;
-  put fState;
-  setParams argsDef vals;
-  returnedVal <- evalStmt (BlockStmt block);
-  put globalState;
-  return returnedVal;
+  evalExpr (ECallFunc f args);
+  return NoRet;
 }
 
 evalStmt (While bExpr stmt) = do {
@@ -292,12 +292,12 @@ addFuncDef (FuncDef t f args block) = do {
     then throwError(repeatedFunMsg);
     else do {
       newLoc <- return (alloc store);
-      put (Data.Map.insert f newLoc env, Data.Map.insert newLoc (VFunc ((args, block), (empty, empty))) store);
+      let newEnv = Data.Map.insert f newLoc env in
+        let newStore = Data.Map.insert newLoc (VFunc ((args, block), (newEnv, newStore))) store in
+          put (newEnv, newStore);
       return ();
     }
 }
-
-
 
 -- Sets the same global environment for every global function
 -- We assume that a type of every element in Store is VFunc 

@@ -1,0 +1,9 @@
+int main() {
+    int x = 0;
+    while (x < 10) {
+        print_int[x];
+        print_str["\n"];
+        x = x + 1;
+    }
+    endwhile
+}

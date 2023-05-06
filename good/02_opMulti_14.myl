@@ -1,0 +1,26 @@
+int main() {
+    int a = 5;
+    print_int[-a + 3]; // -2
+
+    print_str["\n"];
+
+    if (2 < 3 && 4 > 3)
+        print_str["OK 1\n"];
+    endif
+
+    if (!False && True)
+        print_str["OK 2\n"];
+    endif
+
+    if (1 + 1 == 4 - 2)
+        print_str["OK 3\n"];
+    endif
+
+    if (1 != 1 + 2)
+        print_str["OK 4\n"];
+    endif
+
+    if (False && True || True && False)
+        print_str["Should not be printed"];
+    endif
+}
