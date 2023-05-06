@@ -1,0 +1,10 @@
+int main() {
+    bool t = True;
+    if (True && t)
+        print_str ["OK"];
+    endif
+
+    if (False && t)
+        print_str["Should not be printed"];
+    endif
+}

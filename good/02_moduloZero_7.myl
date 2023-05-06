@@ -1,9 +1,9 @@
-int div(int a, int b) {
-    return a / b;
+int mod(int a, int b) {
+    return a % b;
 }
 
 int main(){
-    int res = div(7, 0);
+    int res = mod(7, 0);
     print_int[res];
     print_str["Should not be printed"];
 }

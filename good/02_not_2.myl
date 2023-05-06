@@ -7,7 +7,7 @@ int main() {
     bool notFalse = not(False);
 
     if (notTrue)
-        print_str["NOT OK"];
+        print_str["Should not be printed"];
     endif
 
     if (notFalse)

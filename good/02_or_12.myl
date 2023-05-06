@@ -1,0 +1,16 @@
+int main() {
+    bool t = True;
+    bool f = False;
+    
+    if (True || t)
+        print_str ["OK\n"];
+    endif
+
+    if (True || f)
+        print_str ["OK\n"];
+    endif
+
+    if (False || f)
+        print_str["Should not be printed"];
+    endif
+}

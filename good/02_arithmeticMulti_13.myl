@@ -1,0 +1,9 @@
+int main() {
+    int a = (2 + 3) * 4 / (12 - 6 / 3);
+    print_int[a];
+
+    print_str["\n"];
+
+    int b = 14 + 5 % 2 / 3;
+    print_int[b];
+}

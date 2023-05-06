@@ -1,0 +1,25 @@
+int main() {
+    if (2 < 5)
+        print_str ["OK <\n"];
+    endif
+
+    if (5 <= 5)
+        print_str ["OK <=\n"];
+    endif
+
+    if (5 > 2)
+        print_str ["OK >\n"];
+    endif
+
+    if (5 >= 2)
+        print_str ["OK >=\n"];
+    endif
+
+    if (2 == 2)
+        print_str ["OK ==\n"];
+    endif
+
+    if (2 != 5)
+        print_str ["OK !=\n"];
+    endif
+}
