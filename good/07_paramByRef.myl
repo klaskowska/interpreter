@@ -1,0 +1,28 @@
+void f(int & n, string & s, bool & b) {
+    print_int[n];
+    n = 2;
+
+    print_str[s];
+    s = "def";
+
+    if (b)
+        print_str["OK"];
+    endif
+    b = False;
+
+    return;
+}
+
+int main() {
+    int x = 1;
+    string y = "abc";
+    bool z = True;
+
+    f(x, y, z);             // prints "1abcOK"
+
+    print_int[x];           // prints "2"
+    print_str[y];           // prints "def"
+    if (z)                  
+        print_str["Should not be printed"];
+    endif
+}

@@ -2,6 +2,8 @@
 -- 1. Generalize arithmetic operations
 -- 3. Remeber to check if NotInit matches assinging in type checker
 -- 5. Think about checking if return has been used (for now there is a haskell error when nothing is returned)
+-- 6. Line numbers in error messages
+-- 7. Free space in Store
 
 module Evaluation where
 
@@ -22,12 +24,17 @@ divZeroMsg = "Divide by zero"
 repeatedFunMsg = "Repeated name of function in a global function definition"
 badMainTypeMsg t = "The type of main function is not Int. Given type: " ++ (show t)
 argsMainMsg args = "There were given some arguments in main function definition. Given arguments: " ++ (show args)
+badRefArg t x = "Given argument could not be used as a reference. Parameter: " ++ (show t) ++ " " ++ (show x)
+
 
 -- Types used in interpreter
 type Func = ([Arg], Block)
-data Val = VInt Int | VBool Bool | VString String | VFunc (Func, (ProgState Val)) | NotInit Type | VVoid
+data Val = VInt Int | VBool Bool | VString String | VFunc (Func, Env) | NotInit Type | VVoid
 -- Object which can be returned by statement
 data RetObj = RVal Val | NoRet
+-- Computed expression as a literal or as a variable 
+-- (getting value of CompExpr won't change program's state)
+data CompExpr = CVal Val | CVar Ident
 type Var = Ident
 type Err = String
 type Loc = Int
@@ -82,25 +89,40 @@ initVar x expr = do {
   return (Data.Map.insert x newLoc env, Data.Map.insert newLoc v store);
 }
 
-evalMultiExpr :: [Expr] -> [Val] -> EvalMonad Val [Val]
-evalMultiExpr [] vals = return (reverse vals)
-evalMultiExpr (exprH:exprT) vals = do {
-  v <- evalExpr exprH;
-  evalMultiExpr exprT (v:vals);
+compMultiExpr :: [Expr] -> [CompExpr] -> EvalMonad Val [CompExpr]
+compMultiExpr [] vals = return (reverse vals)
+compMultiExpr (exprH:exprT) vals = do {
+  case exprH of
+    (EVar x) -> compMultiExpr exprT ((CVar x):vals);
+    otherwise -> do {
+      v <- evalExpr exprH;
+      compMultiExpr exprT ((CVal v):vals);
+    }
 }
 
--- Adds variables with given values to the current environment
-setParams :: [Arg] -> [Val] -> EvalMonad Val ()
-setParams [] [] = return ();
-setParams (argH:argT) (valH:valT) = do {
+-- Returns local program state for a function (sets parameters to given arguments) 
+setParams :: [Arg] -> [CompExpr] -> (ProgState Val) -> EvalMonad Val (ProgState Val)
+setParams [] [] state = return state;
+setParams (argH:argT) (compH:compT) (env, store) = do {
   case argH of
     (ArgVal _ x) -> do {
-      (env, store) <- get;
       newLoc <- return (alloc store);
-      put (Data.Map.insert x newLoc env, Data.Map.insert newLoc valH store);
-      setParams argT valT;
+      case compH of
+        (CVal val) -> setParams argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
+        (CVar var) -> do {
+          val <- evalExpr (EVar var);
+          setParams argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
+        }
     }
-    (ArgRef _ x) -> throwError "Not implemented yet"
+    (ArgRef t x) -> do {
+      case compH of
+        (CVal _) -> throwError (badRefArg t x);
+        (CVar var) -> do {
+          (globEnv, _) <- get; 
+          let (Just loc) = lookup var globEnv in
+            setParams argT compT (Data.Map.insert x loc env, store);
+        }
+    }
 }
 
 --------------- Functions evaluating expressions ---------------
@@ -115,19 +137,20 @@ evalExpr (EVar x) = do {
 }
 
 evalExpr (ECallFunc f args) = do {
-  (VFunc ((argsDef, block), fState)) <- evalExpr (EVar f);
-  vals <- evalMultiExpr args [];
-  globalState <- get;
-  put fState;
-  setParams argsDef vals;
+  (VFunc ((argsDef, block), fEnv)) <- evalExpr (EVar f);
+  vals <- compMultiExpr args [];
+  (globEnv, store) <- get;
+  localState <- setParams argsDef vals (fEnv, store);
+  put (localState);
   (RVal v) <- evalStmt (BlockStmt block);
-  put globalState;
+  (_, newStore) <- get;
+  put (globEnv, newStore);
   return v;
 }
 
 evalExpr (ELambda args t block) = do {
-  state <- get;
-  return (VFunc ((args, block), state));
+  (env, store) <- get;
+  return (VFunc ((args, block), env));
 }
 
 -- arithmetic expressions
@@ -293,7 +316,7 @@ addFuncDef (FuncDef t f args block) = do {
     else do {
       newLoc <- return (alloc store);
       let newEnv = Data.Map.insert f newLoc env in
-        let newStore = Data.Map.insert newLoc (VFunc ((args, block), (newEnv, newStore))) store in
+        let newStore = Data.Map.insert newLoc (VFunc ((args, block), newEnv)) store in
           put (newEnv, newStore);
       return ();
     }
@@ -304,12 +327,12 @@ addFuncDef (FuncDef t f args block) = do {
 setGlobalEnvs :: EvalMonad Val ()
 setGlobalEnvs = do {
   (env, store) <- get;
-  let newState = Data.Map.map (\v -> 
+  let newStore = Data.Map.map (\v -> 
         case v of
-          (VFunc (f, _)) -> VFunc (f, (env, store))
+          (VFunc (f, _)) -> VFunc (f, env)
         ) store
     in
-    put (env, newState);
+    put (env, newStore);
   return (); 
 }
 
