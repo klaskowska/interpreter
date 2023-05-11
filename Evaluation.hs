@@ -4,6 +4,8 @@
 -- 5. Think about checking if return has been used (for now there is a haskell error when nothing is returned)
 -- 6. Line numbers in error messages
 -- 7. Free space in Store
+-- 8. Change VFunc (Func, Env) -> VFunc Func Env
+-- 9. Check if var is not NotInit and make NotInit without parameters
 
 module Evaluation where
 
@@ -16,15 +18,8 @@ import Control.Monad.State
 
 import ParGrammar
 import AbsGrammar
-
--- Error messages
-noVarMsg :: Ident -> String
-noVarMsg x = "Unknown variable " ++ (show x) ++ " at some place"
-divZeroMsg = "Divide by zero"
-repeatedFunMsg = "Repeated name of function in a global function definition"
-badMainTypeMsg t = "The type of main function is not Int. Given type: " ++ (show t)
-argsMainMsg args = "There were given some arguments in main function definition. Given arguments: " ++ (show args)
-badRefArg t x = "Given argument could not be used as a reference. Parameter: " ++ (show t) ++ " " ++ (show x)
+import Common
+import Exception
 
 
 -- Types used in interpreter
@@ -35,23 +30,8 @@ data RetObj = RVal Val | NoRet
 -- Computed expression as a literal or as a variable 
 -- (getting value of CompExpr won't change program's state)
 data CompExpr = CVal Val | CVar Ident
-type Var = Ident
-type Err = String
-type Loc = Int
-type Env = Map Var Loc
-type Store a = Map Loc a
-type ProgState a = (Env, Store a)
-
--- A monad used to evaluate expressions
-type EvalMonad a b = (StateT (ProgState a) (ExceptT Err IO)) b
-
--- Exacutes expression evaluation and returns unpacked value
-runEvalMonad :: (EvalMonad a b) -> ProgState a -> IO (Either Err (b, (ProgState a)))
-runEvalMonad v progState = (runExceptT (runStateT v progState))
 
 ----------------------- Helper functions -----------------------
-alloc :: Store a -> Loc
-alloc store = size store
 
 putStrM :: String -> (StateT (ProgState a) (ExceptT Err IO)) ()
 putStrM s = lift $ (lift $ putStr s);
@@ -125,15 +105,14 @@ setParams (argH:argT) (compH:compT) (env, store) = do {
     }
 }
 
---------------- Functions evaluating expressions ---------------
+--------------- Function evaluating expressions ---------------
 
 evalExpr :: Expr -> EvalMonad Val Val
 
 evalExpr (EVar x) = do {
   (env, store) <- get;
-  case lookup x env of
-    (Just l) -> return (store ! l);
-    _ -> throwError(noVarMsg x);
+  let (Just l) = lookup x env in
+    return (store ! l);
 }
 
 evalExpr (ECallFunc f args) = do {
@@ -207,7 +186,7 @@ evalExpr (EString s) = return (VString s)
 
 
 
---------------- Functions evaluating statements ---------------
+--------------- Function evaluating statements ---------------
 evalStmt :: Stmt -> EvalMonad Val RetObj
 
 evalStmt RetVoid = return (RVal VVoid)

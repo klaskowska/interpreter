@@ -27,8 +27,7 @@ Poniżej opisuję najważniejsze oraz nietypowe konstrukcje.
 9. Konstrukcje if, if else zakończone słowem `endif`. Konstrukcja `while` zakończona słowem `endwhile`.
 10. Wypisywanie wartości na wyjście przy pomocy instrukcji `print_int[Expr]` dla liczb oraz `print_str[Expr]` dla napisów.
 11. Można zadeklarować funkcje o nazwie `print_int`, `print_str`, ale to nie nadpisze wbudowanych instrukcji.
-
-
+12. Jeśli mamy wyrażenia wieloargumentowe, to najpierw obliczamy typ każdego z wyrażeń po kolei, a następnie sprawdzamy po kolei, czy każdy z obliczonych typów pasuje do oczekiwań.
 
 
 
