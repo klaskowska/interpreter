@@ -13,32 +13,31 @@ import AbsGrammar
 
 ----------------------- Helper functions -----------------------
 
--- Evaluates type for expressions which are expected to take
--- one expression of type `expectT` as an argument and return value of type `expectT`
-evalExprTypeOneArg :: Expr -> Type -> String -> EvalMonad Type Type
-evalExprTypeOneArg arg expectT exprStr = do {
-  t <- evalExprType arg;
-  case t of
-    expectT -> return expectT
-    otherwise -> throwError (wrongTypeExprOneArg exprStr t expectT)
-}
 
 -- Evaluates type for expressions which are expected to take
--- two expressions of type `expectT` as arguments and return value of type `expectT`
-evalExprTypeTwoArg :: Expr -> Expr -> Type -> String -> EvalMonad Type Type
-evalExprTypeTwoArg arg1 arg2 expectT exprStr = evalExprTypeTwoArgMix arg1 arg2 expectT expectT exprStr
-
--- Evaluates type for expressions which are expected to take
--- two expressions of type `expectTArg` as arguments and return value of type `expectTRet`
-evalExprTypeTwoArgMix :: Expr -> Expr -> Type -> Type -> String -> EvalMonad Type Type
-evalExprTypeTwoArgMix arg1 arg2 expectTArg expectTRet exprStr = do {
+-- two expressions of type Int as arguments and return value of type `retType`
+evalExprTypeArithm :: Expr -> Expr -> Type -> String -> EvalMonad Type Type
+evalExprTypeArithm arg1 arg2 retType exprStr = do {
   t1 <- evalExprType arg1;
   t2 <- evalExprType arg2;
   case (t1, t2) of
-    (expectTArg, expectTArg) -> return expectTRet
-    (expectTArg, _) -> throwError (wrongTypeExprTwoArg exprStr "second" t2 expectTArg)
-    otherwise -> throwError (wrongTypeExprTwoArg exprStr "first" t1 expectTArg)
+    (Int, Int) -> return retType
+    (Int, _) -> throwError (wrongTypeExprTwoArg exprStr "second" t2 Int)
+    otherwise -> throwError (wrongTypeExprTwoArg exprStr "first" t1 Int)
 }
+
+-- Evaluates type for expressions which are expected to take
+-- two expressions of type Bool as arguments and return value of type Bool
+evalExprTypeBool :: Expr -> Expr -> String -> EvalMonad Type Type
+evalExprTypeBool arg1 arg2 exprStr = do {
+  t1 <- evalExprType arg1;
+  t2 <- evalExprType arg2;
+  case (t1, t2) of
+    (Bool, Bool) -> return Bool
+    (Bool, _) -> throwError (wrongTypeExprTwoArg exprStr "second" t2 Bool)
+    otherwise -> throwError (wrongTypeExprTwoArg exprStr "first" t1 Bool)
+}
+
 
 --------------- Type checker for expressions ---------------
 
@@ -55,15 +54,16 @@ evalExprType (EVar x) = do {
 
 evalExprType (EInt _) = return Int
 
-evalExprType (Neg expr) = evalExprTypeOneArg expr Int (show (Neg expr))
+evalExprType (Neg expr) = do {
+  t <- evalExprType expr;
+  case t of
+    Int -> return Int
+    otherwise -> throwError (wrongTypeExprOneArg (show (Neg expr)) t Int)
+}
 
-evalExprType (EMul expr1 op expr2) = 
-  let exprStr = show (EMul expr1 op expr2) in
-    evalExprTypeTwoArg expr1 expr2 Int exprStr
+evalExprType (EMul expr1 op expr2) = evalExprTypeArithm expr1 expr2 Int (show (EMul expr1 op expr2))
 
-evalExprType (EAdd expr1 op expr2) = 
-  let exprStr = show (EAdd expr1 op expr2) in
-    evalExprTypeTwoArg expr1 expr2 Int exprStr
+evalExprType (EAdd expr1 op expr2) = evalExprTypeArithm expr1 expr2 Int (show (EAdd expr1 op expr2))
 
 
 -- boolean expressions
@@ -72,19 +72,18 @@ evalExprType ETrue = return Bool
 
 evalExprType EFalse = return Bool
 
-evalExprType (Not expr) = evalExprTypeOneArg expr Bool (show (Not expr))
+evalExprType (Not expr) = do {
+  t <- evalExprType expr;
+  case t of
+    Bool -> return Bool
+    otherwise -> throwError (wrongTypeExprOneArg (show (Not expr)) t Bool)
+}
 
-evalExprType (ERel expr1 op expr2) = 
-  let exprStr = show (ERel expr1 op expr2) in
-    evalExprTypeTwoArgMix expr1 expr2 Int Bool exprStr
+evalExprType (ERel expr1 op expr2) = evalExprTypeArithm expr1 expr2 Bool (show (ERel expr1 op expr2))
 
-evalExprType (EAnd expr1 expr2) = 
-  let exprStr = show (EAnd expr1 expr2) in
-    evalExprTypeTwoArg expr1 expr2 Bool exprStr
+evalExprType (EAnd expr1 expr2) = evalExprTypeBool expr1 expr2 (show (EAnd expr1 expr2))
 
-evalExprType (EOr expr1 expr2) = 
-  let exprStr = show (EOr expr1 expr2) in
-    evalExprTypeTwoArg expr1 expr2 Bool exprStr
+evalExprType (EOr expr1 expr2) = evalExprTypeBool expr1 expr2 (show (EOr expr1 expr2))
 
 
 -- string expressions
