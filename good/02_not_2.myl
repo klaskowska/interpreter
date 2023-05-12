@@ -13,4 +13,6 @@ int main() {
     if (notFalse)
         print_str["OK"];
     endif
+
+    return 0;
 }

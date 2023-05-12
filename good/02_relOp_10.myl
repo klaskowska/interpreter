@@ -22,4 +22,6 @@ int main() {
     if (2 != 5)
         print_str ["OK !=\n"];
     endif
+
+    return 0;
 }

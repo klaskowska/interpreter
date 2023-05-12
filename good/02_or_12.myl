@@ -13,4 +13,6 @@ int main() {
     if (False || f)
         print_str["Should not be printed"];
     endif
+
+    return 0;
 }

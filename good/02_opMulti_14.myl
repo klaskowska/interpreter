@@ -23,4 +23,6 @@ int main() {
     if (False && True || True && False)
         print_str["Should not be printed"];
     endif
+
+    return 0;
 }

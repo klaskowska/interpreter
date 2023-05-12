@@ -2,4 +2,6 @@ int main() {
     string x = "def";
     print_str["abc"];
     print_str[x];
+
+    return 0;
 }

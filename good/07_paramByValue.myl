@@ -25,4 +25,6 @@ int main() {
     if (z)                  // prints "OK"
         print_str["OK"];
     endif
+
+    return 0;
 }

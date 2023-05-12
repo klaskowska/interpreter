@@ -13,4 +13,6 @@ int main() {
     if (x)
         print_str ["OK 3\n"];
     endif
+
+    return 0;
 }

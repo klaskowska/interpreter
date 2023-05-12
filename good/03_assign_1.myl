@@ -33,4 +33,5 @@ int main() {
         print_str["Should not be printed"];
     endif    
 
+    return 0;
 }

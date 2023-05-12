@@ -21,4 +21,6 @@ int main() {
     else
         print_str["Should not be printed"];
     endif
+
+    return 0;
 }

@@ -6,4 +6,6 @@ int main() {
         x = x + 1;
     }
     endwhile
+
+    return 0;
 }

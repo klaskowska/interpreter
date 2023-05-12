@@ -1,40 +1,47 @@
 import Control.Monad.Reader
 import Evaluation
+import TypeChecker (runEvalTypeMonad, evalProgType)
 import ErrM
 import ParGrammar
 import AbsGrammar
 import Data.Map
 import System.IO
 import System.Environment
+import Control.Monad.Except
 
-wrongNoArgMsg = "Wrong number of arguments"
+wrongNumbArgMsg gvn exp = "Given wrong number of arguments to the interpreter. Given: " ++ (show gvn) ++ ", expected: " ++ (show exp)
 
-runInterpreter :: FilePath -> IO (Either Evaluation.Err (RetObj, (ProgState Val)))
-runInterpreter filename = do
+getSyntaxTree :: FilePath -> IO (ErrM.Err Prog)
+getSyntaxTree filename = do
   handle <- openFile filename ReadMode
   s <- hGetContents handle
-  case pProg $ myLexer s of
-    (Bad err) -> do
-      putStrLn err
-      return (Left err)
-      --exitFailure
-    (Ok tree) -> do   -- tree to będzie Abstract Syntax Tree dla programu, czyli tree ::  Program
-      progRes <- runEvalMonad (evalProg tree) (empty, empty);
-      case progRes of
-        (Left progErr) -> do
-          hPutStrLn stderr progErr;
-          return (Left progErr);
-        otherwise -> return progRes;
+  return (pProg $ myLexer s)
 
--- filename = "good/01-01-int-type.prg"
--- s = "int main() {print_int[1];}"
-main :: IO (Either Evaluation.Err (RetObj, (ProgState Val)))
+
+
+runInterpreter :: FilePath -> IO (Either String ())
+runInterpreter filename = do
+  prog <- getSyntaxTree filename
+  case prog of
+    (Bad err) -> return (Left err)
+    (Ok prog) -> do
+      progTypeCheck <- runEvalTypeMonad (evalProgType prog) empty;
+      case progTypeCheck of
+        (Left errType) -> return (Left errType)
+        otherwise -> do
+          progRes <- runEvalMonad (evalProg prog) (empty, empty);
+          case progRes of
+            (Left progErr) -> return (Left progErr)
+            otherwise -> return (Right ());
+
+main :: IO ()
 main = do
   args <- getArgs
   case args of
-    [filename] -> runInterpreter filename
-    _ -> do
-      putStrLn wrongNoArgMsg
-      putStrLn (show (length args))
-      return (Left wrongNoArgMsg)
+    [filename] -> do
+      interpRes <- runInterpreter filename;
+      case interpRes of
+        (Left err) -> hPutStrLn stderr err
+        (Right _) -> return ()
+    _ -> hPutStrLn stderr (wrongNumbArgMsg (length args) 1)
       

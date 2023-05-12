@@ -25,4 +25,6 @@ int main() {
     if (z)                  
         print_str["Should not be printed"];
     endif
+
+    return 0;
 }

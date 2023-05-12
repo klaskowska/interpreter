@@ -5,4 +5,5 @@ int add(int a, int b) {
 int main(){
     int res = add(7, 3);
     print_int[res];
+    return 0;
 }

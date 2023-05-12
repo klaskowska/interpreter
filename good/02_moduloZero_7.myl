@@ -6,4 +6,6 @@ int main(){
     int res = mod(7, 0);
     print_int[res];
     print_str["Should not be printed"];
+
+    return 0;
 }
