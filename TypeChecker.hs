@@ -81,6 +81,25 @@ checkTypesList (exprH:exprT) (typeH:typeT) f argPos = do {
   checkTypesList exprT typeT f (argPos + 1);
 }
 
+-- Return type based on types returned in two statements
+retType :: RetObj -> RetObj -> EvalTypeMonad RetObj
+retType (NoRet, t) = return t;
+retType (t, NoRet) = return t;
+retType (t1, t2) = do {
+  if t1 == t2
+    then return t1;
+    else throwError (diffRet);
+}
+
+-- Evaluates statement, but leaves environment whitout variables declared in this statement
+evalScopeType :: Stmt -> EvalTypeMonad RetObj
+evalScopeType stmt = do {
+  globalEnv <- get;
+  retObj <- evalStmtType stmt;
+  put globalEnv;
+  return retObj;
+}
+
 --------------- Type checker for expressions ---------------
 
 evalExprType :: Expr -> EvalTypeMonad Type
@@ -191,72 +210,64 @@ evalStmtType (StmtExpr expr) = do {
   return NoRet;
 }
 
-evalStmt (CallFunc f args) = do {
+evalStmtType (CallFunc f args) = do {
   evalExprType (ECallFunc f args);
   return NoRet;
 }
 
-evalStmt (While expr stmt) = do {
+evalStmtType (While expr stmt) = do {
   exprType <- evalExprType expr;
-  if b
-    then do {
-      retObj <- evalStmt stmt;
-      case retObj of
-        NoRet -> evalStmt (While bExpr stmt);
-        otherwise -> return retObj;
-    }
-    else
-      return NoRet;
+  if exprType /= Bool
+    then throwError (wrongTypeWhile (show expr) exprType Bool);
+  evalScopeType stmt;
 }
 
-evalStmt (IfElse bExpr stmt1 stmt2) = do {
-  (VBool b) <- evalExpr bExpr;
-  if b
-    then evalStmt stmt1;
-    else evalStmt stmt2;
+evalStmtType (IfElse expr stmt1 stmt2) = do {
+  exprType <- evalExprType expr;
+  if exprType /= Bool
+    then throwError (wrongTypeIf (show expr) exprType Bool);
+  t1 <- evalScopeType stmt1;
+  t2 <- evalScopeType stmt2;
+  retType t1 t2;
 } 
 
-evalStmt (If bExpr stmt) = do {
-  (VBool b) <- evalExpr bExpr;
-  if b
-    then evalStmt stmt;
-    else return NoRet;  
+evalStmtType (If expr stmt) = do {
+  exprType <- evalExprType expr;
+  if exprType /= Bool
+    then throwError (wrongTypeIf (show expr) exprType Bool);
+  evalScopeType stmt;
 }
 
-evalStmt (Ass x expr) = do {
-  (env, _) <- get;
-  let lMaybe = lookup x env in
-    case lMaybe of
-      (Just l) -> do {
-        n <- evalExpr expr;
-        (env1, store1) <- get;   -- read env again in case of changes during expr evaluation
-        put (env1, Data.Map.insert l n store1);
-        return NoRet;
-      }
-      _ -> throwError(noVarMsg x);
+evalStmtType (Ass x expr) = do {
+  env <- get;
+  case lookup x env of
+    (Just t) -> do {
+      exprType <- evalExprType expr;
+      if t /= exprType
+        then throwError (wrongTypeAss (show expr) exprType t);
+      return NoRet;
+    }
+    _ -> throwError(noVarAss x);
 }
 
-evalStmt (VarDef t (NoInit x)) = do {
-  (env, store) <- get;
-  newLoc <- return (alloc store);
-  put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (NotInit t) store);
+evalStmtType (VarDef t (NoInit x)) = do {
+  env <- get;
+  put (Data.Map.insert x t env);
   return NoRet;
 }
 
-evalStmt (VarDef _ (Init x expr)) = do {
-  newState <- initVar x expr;
-  put (newState);
+evalStmtType (VarDef t (Init x expr)) = do {
+  exprType <- evalExprType expr;
+  if exprType /= t
+    then throwError (wrongTypeInit (show expr) exprType t);
+  env <- get;
+  put (Data.Map.insert x t env);
   return NoRet;
 }
 
 evalStmtType (BlockStmt (Block [])) = return NoRet;
 evalStmtType (BlockStmt (Block (stmtH:stmtT))) = do {
   retObjH <- evalStmtType stmtH;
-  retObjT <- evalStmtType (BlockStmt (Block stmtT))
-  case (retObjH, retObjT) of
-    (NoRet, t) -> return t;
-    (t, NoRet) -> return t;
-    (t1, t2) -> if t1 == t2
-      then return t1;
-      else throwError (diffRet);
+  retObjT <- evalStmtType (BlockStmt (Block stmtT));
+  retType retObjH retObjT;
 }

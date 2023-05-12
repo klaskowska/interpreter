@@ -122,6 +122,15 @@ setParams (argH:argT) (compH:compT) (env, store) = do {
     }
 }
 
+-- Evaluates statement, but leaves environment whitout variables declared in this statement
+evalScope :: Stmt -> EvalMonad Val Val
+evalScope stmt = do {
+  (globalEnv, _) <- get;
+  res <- evalStmt stmt;
+  (newEnv, newStore) <- get;
+  put (globalEnv, newStore);
+}
+
 --------------- Function evaluating expressions ---------------
 
 evalExpr :: Expr -> EvalMonad Val Val
@@ -241,7 +250,7 @@ evalStmt (While bExpr stmt) = do {
   (VBool b) <- evalExpr bExpr;
   if b
     then do {
-      retObj <- evalStmt stmt;
+      retObj <- evalScope stmt;
       case retObj of
         NoRet -> evalStmt (While bExpr stmt);
         otherwise -> return retObj;
@@ -253,31 +262,29 @@ evalStmt (While bExpr stmt) = do {
 evalStmt (IfElse bExpr stmt1 stmt2) = do {
   (VBool b) <- evalExpr bExpr;
   if b
-    then evalStmt stmt1;
-    else evalStmt stmt2;
+    then evalScope stmt1;
+    else evalScope stmt2;
 } 
 
 evalStmt (If bExpr stmt) = do {
   (VBool b) <- evalExpr bExpr;
   if b
-    then evalStmt stmt;
+    then evalScope stmt;
     else return NoRet;  
 }
 
 evalStmt (Ass x expr) = do {
   (env, _) <- get;
-  let lMaybe = lookup x env in
-    case lMaybe of
-      (Just l) -> do {
-        n <- evalExpr expr;
-        (env1, store1) <- get;   -- read env again in case of changes during expr evaluation
-        put (env1, Data.Map.insert l n store1);
-        return NoRet;
-      }
-      _ -> throwError(noVarMsg x);
+  let (Just l) = lookup x env in
+    do {
+      n <- evalExpr expr;
+      (env1, store1) <- get;   -- read env again in case of changes during expr evaluation
+      put (env1, Data.Map.insert l n store1);
+      return NoRet;
+    }
 }
 
-evalStmt (VarDef t (NoInit x)) = do {
+evalStmt (VarDef _ (NoInit x)) = do {
   (env, store) <- get;
   newLoc <- return (alloc store);
   put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (NotInit t) store);
