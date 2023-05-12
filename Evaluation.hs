@@ -6,6 +6,8 @@
 -- 7. Free space in Store
 -- 8. Change VFunc (Func, Env) -> VFunc Func Env
 -- 9. Check if var is not NotInit and make NotInit without parameters
+-- 10. Remove Common.h
+-- 11. Replace a -> Val in EvalMonad
 
 module Evaluation where
 
@@ -18,20 +20,35 @@ import Control.Monad.State
 
 import ParGrammar
 import AbsGrammar
-import Common
 import Exception
 
-
 -- Types used in interpreter
+
+type Var = Ident
+type Err = String
 type Func = ([Arg], Block)
 data Val = VInt Int | VBool Bool | VString String | VFunc (Func, Env) | NotInit Type | VVoid
+type Loc = Int
+type Env = Map Var Loc
+type Store a = Map Loc a
+type ProgState a = (Env, Store a)
 -- Object which can be returned by statement
 data RetObj = RVal Val | NoRet
 -- Computed expression as a literal or as a variable 
 -- (getting value of CompExpr won't change program's state)
 data CompExpr = CVal Val | CVar Ident
 
+-- A monad used to evaluate program components
+type EvalMonad a b = (StateT (ProgState a) (ExceptT Err IO)) b
+
+-- Exacutes expression evaluation and returns unpacked value
+runEvalMonad :: (EvalMonad a b) -> ProgState a -> IO (Either Err (b, (ProgState a)))
+runEvalMonad v progState = (runExceptT (runStateT v progState))
+
 ----------------------- Helper functions -----------------------
+
+alloc :: Store a -> Loc
+alloc store = size store
 
 putStrM :: String -> (StateT (ProgState a) (ExceptT Err IO)) ()
 putStrM s = lift $ (lift $ putStr s);
@@ -127,8 +144,8 @@ evalExpr (ECallFunc f args) = do {
   return v;
 }
 
-evalExpr (ELambda args t block) = do {
-  (env, store) <- get;
+evalExpr (ELambda args _ block) = do {
+  (env, _) <- get;
   return (VFunc ((args, block), env));
 }
 
