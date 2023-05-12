@@ -123,12 +123,13 @@ setParams (argH:argT) (compH:compT) (env, store) = do {
 }
 
 -- Evaluates statement, but leaves environment whitout variables declared in this statement
-evalScope :: Stmt -> EvalMonad Val Val
+evalScope :: Stmt -> EvalMonad Val RetObj
 evalScope stmt = do {
   (globalEnv, _) <- get;
   res <- evalStmt stmt;
   (newEnv, newStore) <- get;
   put (globalEnv, newStore);
+  return res;
 }
 
 --------------- Function evaluating expressions ---------------
@@ -284,7 +285,7 @@ evalStmt (Ass x expr) = do {
     }
 }
 
-evalStmt (VarDef _ (NoInit x)) = do {
+evalStmt (VarDef t (NoInit x)) = do {
   (env, store) <- get;
   newLoc <- return (alloc store);
   put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (NotInit t) store);
@@ -315,13 +316,12 @@ addFuncDef :: FuncDef -> EvalMonad Val ()
 addFuncDef (FuncDef t f args block) = do {
   (env, store) <- get;
   if member f env
-    then throwError(repeatedFunMsg);
+    then throwError(repeatedFunMsg f);
     else do {
       newLoc <- return (alloc store);
       let newEnv = Data.Map.insert f newLoc env in
         let newStore = Data.Map.insert newLoc (VFunc ((args, block), newEnv)) store in
           put (newEnv, newStore);
-      return ();
     }
 }
 
@@ -335,8 +335,7 @@ setGlobalEnvs = do {
           (VFunc (f, _)) -> VFunc (f, env)
         ) store
     in
-    put (env, newStore);
-  return (); 
+    put (env, newStore); 
 }
 
 evalMain :: EvalMonad Val RetObj

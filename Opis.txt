@@ -40,3 +40,5 @@ Nowe spostrzeżenia
 6. Funkcje void też muszą mieć return.
 7. Przy wywoływaniu funkcji w statycznym typowaniu najpierw sprawdzamy, czy dana funkcja została zadeklarowana, następnie sprawdzamy, czy liczba przekazanych argumentów się zgadza, a następnie po kolei obliczamy typy przekazanych argumentów i sprawdzamy, czy zgadzają się z definicją tej funkcji.
 8. Typy sprawdzamy też w nieosiągalnej części kodu (po "return");
+9. W `while` oraz `if` najpierw obliczamy typ warunku i sprawdzamy, czy się zgadza, a następnie obliczamy typ instrukcji.
+10. Przy przypisywaniu wartości na zmienną najpierw sprawdzamy, czy dana zmienna została zadeklarowana, a następnie sprawdzamy, czy typ wyrażenia jest odpowiedni.

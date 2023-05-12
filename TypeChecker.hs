@@ -15,7 +15,7 @@ import AbsGrammar
 
 type Var = Ident
 type Err = String
-data Env = Map Var Type
+type Env = Map Var Type
 -- Object which can be returned by statement
 data RetObj = RType Type | NoRet
 
@@ -49,7 +49,7 @@ evalExprTypeBool arg1 arg2 exprStr = do {
   t1 <- evalExprType arg1;
   t2 <- evalExprType arg2;
   case (t1, t2) of
-    (Bool, Bool) -> return TBool
+    (Bool, Bool) -> return Bool
     (Bool, _) -> throwError (wrongTypeExprTwoArg exprStr "second" t2 Bool)
     otherwise -> throwError (wrongTypeExprTwoArg exprStr "first" t1 Bool)
 }
@@ -59,7 +59,7 @@ unpackArg (ArgVal t x) = (t, x)
 unpackArg (ArgRef t x) = (t, x)
 
 argsToTypes :: [Arg] -> [Type]
-argsToTypes args = map (arg -> fst (unpackArg arg)) args
+argsToTypes args = Prelude.map (\ arg -> fst (unpackArg arg)) args
 
 setParams :: [Arg] -> EvalTypeMonad ()
 setParams [] = return ();
@@ -78,16 +78,16 @@ checkTypesList (exprH:exprT) (typeH:typeT) f argPos = do {
   exprType <- evalExprType exprH;
   if exprType /= typeH
     then throwError (wrongPassedArg f argPos exprType typeH);
-  checkTypesList exprT typeT f (argPos + 1);
+    else checkTypesList exprT typeT f (argPos + 1);
 }
 
 -- Return type based on types returned in two statements
 retType :: RetObj -> RetObj -> EvalTypeMonad RetObj
-retType (NoRet, t) = return t;
-retType (t, NoRet) = return t;
-retType (t1, t2) = do {
+retType NoRet t = return t;
+retType t NoRet = return t;
+retType (RType t1) (RType t2) = do {
   if t1 == t2
-    then return t1;
+    then return (RType t1);
     else throwError (diffRet);
 }
 
@@ -100,6 +100,26 @@ evalScopeType stmt = do {
   return retObj;
 }
 
+-- Returns type which should be returned at the end of function
+finalRetType :: RetObj -> Type
+finalRetType retObj = 
+  case retObj of
+    NoRet -> Void
+    (RType t) -> t
+
+-- Checks types for statements in a function body when `args` are added to the environment
+-- and checks if function returns value of type `t`
+checkFuncBody :: [Arg] -> Type -> Block -> EvalTypeMonad ()
+checkFuncBody args t block = do {
+  globalEnv <- get;
+  setParams args;
+  retObj <- evalStmtType (BlockStmt block);
+  let retType = finalRetType retObj in
+    if retType /= t
+      then throwError (wrongTypeLambda (show block) retType t);
+      else put globalEnv;
+}
+
 --------------- Type checker for expressions ---------------
 
 evalExprType :: Expr -> EvalTypeMonad Type
@@ -107,34 +127,26 @@ evalExprType :: Expr -> EvalTypeMonad Type
 evalExprType (EVar x) = do {
   env <- get;
   case lookup x env of
-    (Just t) -> t;
+    (Just t) -> return t;
     _ -> throwError(noVarMsg x);
 }
 
 evalExprType (ECallFunc f args) = do {
-  fType <- evalExpr (EVar f);
+  fType <- evalExprType (EVar f);
   case fType of
     (FuncType retType argTypes) -> do {
       if (length args) /= (length argTypes)
         then throwError (wrongArgNumb f);
-      checkTypesList args argTypes f 1;
-      return retType;
+        else do {
+          checkTypesList args argTypes f 1;
+          return retType;
+        }
     }
     otherwise -> throwError (notFunc f);
 }
 
 evalExprType (ELambda args t block) = do {
-  globalEnv <- get;
-  setParams args;
-  retObj <- evalStmtType block;
-  let retType = 
-    case retObj of
-      NoRet -> Void
-      (RType type) -> type
-      in
-      if retType /= t
-        then throwError (wrongTypeLambda (show expr) retObj t);
-  put globalEnv;
+  checkFuncBody args t block;
   return (FuncType t (argsToTypes args));
 }
 
@@ -163,7 +175,7 @@ evalExprType EFalse = return Bool
 evalExprType (Not expr) = do {
   t <- evalExprType expr;
   case t of
-    TBool -> return Bool
+    Bool -> return Bool
     otherwise -> throwError (wrongTypeExprOneArg (show (Not expr)) t Bool)
 }
 
@@ -180,7 +192,7 @@ evalExprType (EString s) = return Str
 
 
 --------------- Function evaluating statements ---------------
-evalStmtType :: Stmt -> EvalTypeMonad Type
+evalStmtType :: Stmt -> EvalTypeMonad RetObj
 
 evalStmtType RetVoid = return (RType Void)
 
@@ -219,23 +231,25 @@ evalStmtType (While expr stmt) = do {
   exprType <- evalExprType expr;
   if exprType /= Bool
     then throwError (wrongTypeWhile (show expr) exprType Bool);
-  evalScopeType stmt;
+    else evalScopeType stmt;
 }
 
 evalStmtType (IfElse expr stmt1 stmt2) = do {
   exprType <- evalExprType expr;
   if exprType /= Bool
     then throwError (wrongTypeIf (show expr) exprType Bool);
-  t1 <- evalScopeType stmt1;
-  t2 <- evalScopeType stmt2;
-  retType t1 t2;
+    else do {
+      t1 <- evalScopeType stmt1;
+      t2 <- evalScopeType stmt2;
+      retType t1 t2;
+    }
 } 
 
 evalStmtType (If expr stmt) = do {
   exprType <- evalExprType expr;
   if exprType /= Bool
     then throwError (wrongTypeIf (show expr) exprType Bool);
-  evalScopeType stmt;
+    else evalScopeType stmt;
 }
 
 evalStmtType (Ass x expr) = do {
@@ -245,9 +259,9 @@ evalStmtType (Ass x expr) = do {
       exprType <- evalExprType expr;
       if t /= exprType
         then throwError (wrongTypeAss (show expr) exprType t);
-      return NoRet;
+        else return NoRet;
     }
-    _ -> throwError(noVarAss x);
+    _ -> throwError(noVarMsg x);
 }
 
 evalStmtType (VarDef t (NoInit x)) = do {
@@ -260,9 +274,11 @@ evalStmtType (VarDef t (Init x expr)) = do {
   exprType <- evalExprType expr;
   if exprType /= t
     then throwError (wrongTypeInit (show expr) exprType t);
-  env <- get;
-  put (Data.Map.insert x t env);
-  return NoRet;
+    else do {
+      env <- get;
+      put (Data.Map.insert x t env);
+      return NoRet;
+    }
 }
 
 evalStmtType (BlockStmt (Block [])) = return NoRet;
@@ -270,4 +286,31 @@ evalStmtType (BlockStmt (Block (stmtH:stmtT))) = do {
   retObjH <- evalStmtType stmtH;
   retObjT <- evalStmtType (BlockStmt (Block stmtT));
   retType retObjH retObjT;
+}
+
+
+--------------- Functions evaluating program types ---------------
+addFuncDefs :: [FuncDef] -> EvalTypeMonad ()
+addFuncDefs [] = return ()
+addFuncDefs ((FuncDef t f args _):funcT) = do {
+  env <- get;
+  if member f env
+    then throwError (repeatedFunMsg f);
+    else do {
+      put (Data.Map.insert f (FuncType t (argsToTypes args)) env);
+      addFuncDefs funcT;
+    }
+}
+
+checkFuncBodies :: [FuncDef] -> EvalTypeMonad ()
+checkFuncBodies [] = return ();
+checkFuncBodies ((FuncDef t _ args stmt):funcT) = do {
+  checkFuncBody args t stmt;
+  checkFuncBodies funcT;
+}
+
+evalProgType :: Prog -> EvalTypeMonad ()
+evalProgType (Prog funcDefs) = do {
+  addFuncDefs funcDefs;
+  checkFuncBodies funcDefs;
 }
