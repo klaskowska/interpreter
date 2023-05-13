@@ -1,0 +1,9 @@
+int f() {
+    print_int[1];   // it will not be printed
+}
+
+int main() {
+    f();
+
+    return 0;
+}

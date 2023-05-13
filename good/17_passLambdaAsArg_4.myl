@@ -1,0 +1,13 @@
+int f(function <int> (int) g, int a) {
+    print_str["Call function passed as argument\n"];
+
+    print_int[g(a)];
+
+    return 0;
+}
+
+int main() {
+    f(lambda (int x) -> int { return x * x; }, 4);      // prints "Call function passed as argument\n16"
+
+    return 0;
+}

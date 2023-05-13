@@ -1,0 +1,9 @@
+int f(string s, int n) {
+    return 0;
+}
+
+int main() {
+    f("a");
+
+    return 0;
+}

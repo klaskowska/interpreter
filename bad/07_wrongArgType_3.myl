@@ -1,0 +1,9 @@
+void f(int a) {
+    ;
+}
+
+int main() {
+    f("a");
+
+    return 0;
+}

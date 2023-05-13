@@ -42,3 +42,5 @@ Nowe spostrzeżenia
 8. Typy sprawdzamy też w nieosiągalnej części kodu (po "return");
 9. W `while` oraz `if` najpierw obliczamy typ warunku i sprawdzamy, czy się zgadza, a następnie obliczamy typ instrukcji.
 10. Przy przypisywaniu wartości na zmienną najpierw sprawdzamy, czy dana zmienna została zadeklarowana, a następnie sprawdzamy, czy typ wyrażenia jest odpowiedni.
+11. Jednak muszą mieć return nawet funkcje void.
+12. Funkcje nie mogą się nazywać słówkami kluczowymi, tj. print_int, print_str, calc, if, while, return, True, False, int, string, bool, void, function

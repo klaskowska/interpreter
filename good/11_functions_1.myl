@@ -1,0 +1,17 @@
+int f1(int a, string b, bool c) {
+    return 1;
+}
+
+void f2(int a) {
+    print_int[a];
+    return;
+}
+
+int main() {
+    int a = f1(2, "", True);
+    print_int[a];
+
+    f2(2);
+
+    return 0;
+}

@@ -1,0 +1,3 @@
+Error around line 2, column 10
+Wrong type in expression "(<)" in the first argument.
+Given type: bool, expected: int

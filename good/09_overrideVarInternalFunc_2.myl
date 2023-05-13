@@ -1,0 +1,21 @@
+int main() {
+    int x = 5;
+    
+    function <void> () f1 = lambda () -> void {
+        x = x + 1;
+        print_int[x];
+        return;
+    };
+
+    function <void> () f2 = lambda () -> void {
+        int x = 1;
+        f1();
+        print_int[x];
+        return;
+    };
+
+    f2();           // prints "61"
+    print_int[x];   // prints "6"
+
+    return 0;
+}

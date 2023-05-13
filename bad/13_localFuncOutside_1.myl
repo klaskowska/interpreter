@@ -1,0 +1,18 @@
+void f() {
+    function <void> () f1 = lambda () -> void {
+        print_str["a"];
+
+        return;
+    };
+
+    f1();
+
+    return;
+}
+
+int main() {
+    f();        // prints "a"
+    f1();       // throws error
+
+    return 0;
+}

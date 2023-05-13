@@ -1,0 +1,3 @@
+Error around line 6, column 5
+Passed wrong argument in function f in 1. argument.
+Given type: string, expected: int

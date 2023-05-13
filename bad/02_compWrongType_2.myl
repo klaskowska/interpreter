@@ -1,0 +1,4 @@
+int f() {
+    calc True < 5;
+    return 1;
+}

@@ -1,0 +1,18 @@
+void f(function <int> (int) f1) {
+    int a = 5;
+    int b = f1(a);
+
+    print_int[b];
+
+    return;
+}
+
+int double(int x) {
+    return 2 * x;
+}
+
+int main() {
+    f(double);      // prints "10"
+
+    return 0;
+}

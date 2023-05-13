@@ -1,0 +1,15 @@
+function <int> (int) f(int x) {
+    return lambda (int b) -> int {
+        return x * b;
+    };
+}
+
+int main() {
+    function <int> (int) double = f(2);
+    function <int> (int) triple = f(3);
+
+    print_int[double(4)];   // prints "8"
+    print_int[triple(4)];   // prints "12"
+
+    return 0;
+}

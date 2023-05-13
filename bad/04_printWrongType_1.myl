@@ -1,0 +1,5 @@
+int main() {
+    print_int["a"];
+
+    return 0;
+}

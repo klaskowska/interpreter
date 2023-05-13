@@ -1,0 +1,16 @@
+function <int> (int) f(int a) {
+    return lambda (int x) -> int { a = a + x; return a; };
+}
+
+int main() {
+    function <int> (int) f1 = f(1);
+    function <int> (int) f10 = f(10);
+
+    print_int[f1(1)];       // 2
+    print_int[f10(10)];     // 20
+
+    print_int[f1(1)];       // 3
+    print_int[f10(10)];     // 30
+
+    return 0;
+}

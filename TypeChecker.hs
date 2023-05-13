@@ -136,7 +136,7 @@ checkFuncBody pos args t block = do {
   let retType = finalRetType retObj in
     if eqType retType t
       then put globalEnv;
-      else throwError (errorMsg pos (wrongTypeLambda retType t));     
+      else throwError (errorMsg pos (wrongTypeLambda t));     
 }
 
 --------------- Type checker for expressions ---------------

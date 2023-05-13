@@ -1,0 +1,9 @@
+int main() {
+    print_str["a"];     // it will not be printed
+
+    int a = 1 / 0;      // program will not throw an error here
+
+    int a = "a";        // it will throw an error here
+
+    return 0;
+}

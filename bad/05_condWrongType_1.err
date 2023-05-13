@@ -1,0 +1,3 @@
+Error around line 2, column 5
+Wrong type of condition expression in `if`.
+Given type: int, expected: bool

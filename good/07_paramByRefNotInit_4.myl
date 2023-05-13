@@ -1,0 +1,13 @@
+void f(int & x) {
+    x = 5;
+
+    return;
+}
+
+int main() {
+    int y;
+    f(y);
+    print_int[y];
+
+    return 0;
+}

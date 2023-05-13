@@ -27,7 +27,7 @@ import Exception
 type Var = Ident
 type Err = String
 type Func = ([Arg], Block)
-data Val = VInt Int | VBool Bool | VString String | VFunc (Func, Env) | NotInit Type | VVoid
+data Val = VInt Int | VBool Bool | VString String | VFunc (Func, Env) | NotInit | VVoid
 type Loc = Int
 type Env = Map Var Loc
 type Store a = Map Loc a
@@ -98,26 +98,26 @@ compMultiExpr (exprH:exprT) vals = do {
 }
 
 -- Returns local program state for a function (sets parameters to given arguments) 
-setParams :: BNFC'Position -> [Arg] -> [CompExpr] -> (ProgState Val) -> EvalMonad Val (ProgState Val)
-setParams _ [] [] state = return state;
-setParams pos (argH:argT) (compH:compT) (env, store) = do {
+setParams :: BNFC'Position -> Ident -> [Arg] -> [CompExpr] -> (ProgState Val) -> EvalMonad Val (ProgState Val)
+setParams _ _ [] [] state = return state;
+setParams pos f (argH:argT) (compH:compT) (env, store) = do {
   case argH of
     (ArgVal _ _ x) -> do {
       newLoc <- return (alloc store);
       case compH of
-        (CVal val) -> setParams pos argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
+        (CVal val) -> setParams pos f argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
         (CVar var) -> do {
           val <- evalExpr (EVar pos var);
-          setParams pos argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
+          setParams pos f argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
         }
     }
     (ArgRef _ t x) -> do {
       case compH of
-        (CVal _) -> throwError (errorMsg pos (badRefArg t x));
+        (CVal _) -> throwError (errorMsg pos (badRefArg f t x));
         (CVar var) -> do {
           (globEnv, _) <- get; 
           let (Just loc) = lookup var globEnv in
-            setParams pos argT compT (Data.Map.insert x loc env, store);
+            setParams pos f argT compT (Data.Map.insert x loc env, store);
         }
     }
 }
@@ -136,17 +136,20 @@ evalScope stmt = do {
 
 evalExpr :: Expr -> EvalMonad Val Val
 
-evalExpr (EVar _ x) = do {
+evalExpr (EVar pos x) = do {
   (env, store) <- get;
   let (Just l) = lookup x env in
-    return (store ! l);
+    let v = store ! l in
+      case v of
+        NotInit -> throwError (errorMsg pos (notInit x));
+        otherwise -> return v;
 }
 
 evalExpr (ECallFunc pos f args) = do {
   (VFunc ((argsDef, block), fEnv)) <- evalExpr (EVar pos f);
   vals <- compMultiExpr args [];
   (globEnv, store) <- get;
-  localState <- setParams pos argsDef vals (fEnv, store);
+  localState <- setParams pos f argsDef vals (fEnv, store);
   put (localState);
   (RVal v) <- evalStmt (BlockStmt pos block);
   (_, newStore) <- get;
@@ -288,7 +291,7 @@ evalStmt (Ass _ x expr) = do {
 evalStmt (VarDef _ t (NoInit _ x)) = do {
   (env, store) <- get;
   newLoc <- return (alloc store);
-  put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (NotInit t) store);
+  put (Data.Map.insert x newLoc env, Data.Map.insert newLoc NotInit store);
   return NoRet;
 }
 

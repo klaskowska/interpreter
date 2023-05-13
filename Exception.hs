@@ -26,9 +26,9 @@ argsMainMsg args = "There were given some arguments in main function definition.
 badRefArg (Ident f) t (Ident x) = "Wrong call of function " ++ f ++ ". Given argument could not be used as a reference. Parameter: " ++ (printType t) ++ " & " ++ x
 wrongTypeExprOneArg exprName givenT expectT = "Wrong type in expression \"" ++ exprName ++ "\"." ++ (wrongTypeMsg givenT expectT)
 wrongTypeExprTwoArg exprName whichArg givenT expectT = "Wrong type in expression \"" ++ exprName ++ "\" in the " ++ whichArg ++ " argument." ++ (wrongTypeMsg givenT expectT)
-wrongTypeLambda givenT expectT = "Wrong returned type in lambda expression." ++ (wrongTypeMsg givenT expectT)
+wrongTypeLambda expectT = "Wrong returned type in function body. Expected type: " ++ (printType expectT)
 wrongArgNumb (Ident f) = "Passed wrong number of arguments in function " ++ f
-wrongPassedArg (Ident f) argPos givenT expectT = "Passed wrong argument in function " ++ f ++ "in " ++ (show argPos) ++ ". argument." ++ (wrongTypeMsg givenT expectT)
+wrongPassedArg (Ident f) argPos givenT expectT = "Passed wrong argument in function " ++ f ++ " in " ++ (show argPos) ++ ". argument." ++ (wrongTypeMsg givenT expectT)
 notFunc (Ident x) = "Variable " ++ x ++ "is not a function"
 diffRet = "Returned values of different type in a function"
 wrongTypeStmtOneArg stmtName givenT expectT = "Wrong type in statement \"" ++ stmtName ++ "\"." ++ (wrongTypeMsg givenT expectT)
@@ -37,3 +37,4 @@ wrongTypeIf givenT expectT = "Wrong type of condition expression in `if`." ++ (w
 wrongTypeAss x givenT expectT = let (Just (line, column)) = hasPosition expectT in
     "Wrong type of expression in assignment to var " ++ (show x) ++ " declared in line " ++ (show line) ++ ", column " ++ (show column) ++ ".\nGiven type: " ++ (printType givenT) 
 wrongTypeInit givenT expectT = "Wrong type of expression in variable initialization." ++ (wrongTypeMsg givenT expectT)
+notInit (Ident x) = "Variable " ++ x ++ " is not initialized."

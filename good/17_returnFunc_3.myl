@@ -1,0 +1,18 @@
+int double(int x) {
+    return 2 * x;
+}
+
+function <int> (int) f() {
+    print_str["Print this with call `double`\n"];
+
+    return double;
+}
+
+int main() {
+    int a = 2;
+    function <int> (int) doubleWithPrint = f();
+    a = doubleWithPrint(a);     // prints "Print this with call `double`\n"
+    print_int[a];       // prints "4"
+    
+    return 0;
+}

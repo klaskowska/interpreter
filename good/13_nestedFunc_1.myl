@@ -1,0 +1,25 @@
+void f(int a) {
+    function <int> (int) f1 = lambda (int & b) -> int {
+        int c = a;
+        function <void> () f2 = lambda () -> void {
+            b = b + 1;
+            return;
+        };
+
+        f2();
+
+        b = b + 1;
+        return c;
+    };
+
+    print_int[f1(a)];
+    print_int[a];
+
+    return;
+}
+
+int main() {
+    f(1);       // prints "13"
+
+    return 0;
+}
