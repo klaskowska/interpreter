@@ -47,6 +47,7 @@ eqType (Void _) (Void _) = True
 eqType (FuncType _ retT1 argTs1) (FuncType _ retT2 argTs2) = 
   eqType retT1 retT2 && (length argTs1) == (length argTs2) &&
     (and $ zipWith eqType argTs1 argTs2)
+eqType _ _ = False
 
 -- Evaluates type for expressions which are expected to take
 -- two expressions of type Int as arguments and return value of type `retType`
@@ -135,7 +136,7 @@ checkFuncBody pos args t block = do {
   let retType = finalRetType retObj in
     if eqType retType t
       then put globalEnv;
-      else throwError (errorMsg pos (wrongTypeLambda (show block) retType t));     
+      else throwError (errorMsg pos (wrongTypeLambda retType t));     
 }
 
 --------------- Type checker for expressions ---------------
@@ -181,10 +182,15 @@ evalExprType (Neg pos expr) = do {
     otherwise -> throwError (errorMsg pos (wrongTypeExprOneArg "negation" t (Int ())))
 }
 
-evalExprType (EMul pos expr1 op expr2) = evalExprTypeArithm pos expr1 expr2 (Int ()) (show op)
+evalExprType (EMul pos expr1 (Times _) expr2) = evalExprTypeArithm pos expr1 expr2 (Int ()) "(*)"
 
-evalExprType (EAdd pos expr1 op expr2) = evalExprTypeArithm pos expr1 expr2 (Int ()) (show op)
+evalExprType (EMul pos expr1 (Div _) expr2) = evalExprTypeArithm pos expr1 expr2 (Int ()) "(/)"
 
+evalExprType (EMul pos expr1 (Mod _) expr2) = evalExprTypeArithm pos expr1 expr2 (Int ()) "mod"
+
+evalExprType (EAdd pos expr1 (Plus _) expr2) = evalExprTypeArithm pos expr1 expr2 (Int ()) "(+)"
+
+evalExprType (EAdd pos expr1 (Minus _) expr2) = evalExprTypeArithm pos expr1 expr2 (Int ()) "(-)"
 
 -- boolean expressions
 
@@ -199,11 +205,21 @@ evalExprType (Not pos expr) = do {
     otherwise -> throwError (errorMsg pos (wrongTypeExprOneArg "not" t (Bool ())))
 }
 
-evalExprType (ERel pos expr1 op expr2) = evalExprTypeArithm pos expr1 expr2 (Bool ()) (show op)
+evalExprType (ERel pos expr1 (LTH _) expr2) = evalExprTypeArithm pos expr1 expr2 (Bool ()) "(<)"
 
-evalExprType (EAnd pos expr1 expr2) = evalExprTypeBool pos expr1 expr2 "and"
+evalExprType (ERel pos expr1 (LE _) expr2) = evalExprTypeArithm pos expr1 expr2 (Bool ()) "(<=)"
 
-evalExprType (EOr pos expr1 expr2) = evalExprTypeBool pos expr1 expr2 "or"
+evalExprType (ERel pos expr1 (GTH _) expr2) = evalExprTypeArithm pos expr1 expr2 (Bool ()) "(>)"
+
+evalExprType (ERel pos expr1 (GE _) expr2) = evalExprTypeArithm pos expr1 expr2 (Bool ()) ">"
+
+evalExprType (ERel pos expr1 (EQU _) expr2) = evalExprTypeArithm pos expr1 expr2 (Bool ()) "=="
+
+evalExprType (ERel pos expr1 (NE _) expr2) = evalExprTypeArithm pos expr1 expr2 (Bool ()) "!="
+
+evalExprType (EAnd pos expr1 expr2) = evalExprTypeBool pos expr1 expr2 "&&"
+
+evalExprType (EOr pos expr1 expr2) = evalExprTypeBool pos expr1 expr2 "||"
 
 
 -- string expressions
@@ -227,14 +243,14 @@ evalStmtType (PrintStr pos expr) = do {
   t <- evalExprType expr;
   case t of
     (Str _) -> return NoRet;
-    otherwise -> throwError (errorMsg pos (wrongTypeStmtOneArg (show (PrintStr pos expr)) t (Str ())))
+    otherwise -> throwError (errorMsg pos (wrongTypeStmtOneArg "print_str" t (Str ())))
 }
 
 evalStmtType (PrintInt pos expr) = do {
   t <- evalExprType expr;
   case t of
     (Int _) -> return NoRet;
-    otherwise -> throwError (errorMsg pos (wrongTypeStmtOneArg (show (PrintInt pos expr)) t (Int ())))
+    otherwise -> throwError (errorMsg pos (wrongTypeStmtOneArg "print_int" t (Int ())))
 }
 
 evalStmtType (StmtExpr _ expr) = do {
@@ -298,7 +314,7 @@ evalStmtType (VarDef pos t (Init _ x expr)) = do {
       put (Data.Map.insert x t env);
       return NoRet;
     }
-    else throwError (errorMsg pos (wrongTypeInit (show expr) exprType t));
+    else throwError (errorMsg pos (wrongTypeInit exprType t));
 
 }
 

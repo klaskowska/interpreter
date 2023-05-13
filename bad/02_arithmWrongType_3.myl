@@ -1,0 +1,4 @@
+int main() {
+    calc 2 + "a";
+    return 0;
+}

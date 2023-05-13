@@ -12,27 +12,28 @@ printTypes :: [Type' a] -> String
 printTypes types = let typeListStr = show (map (\t -> printType t) types) in
     take (-1) (drop 1 typeListStr)
 
-errorMsg (Just (line, column)) reason = "Error around line " ++ (show line) ++ ", column " ++ (show column) ++ "\n" ++ reason 
-errorMsg Nothing reason = "Error at some place\n" ++ reason 
+errorMsg (Just (line, column)) reason = "Error around line " ++ (show line) ++ ", column " ++ (show column) ++ "\n" ++ reason
+errorMsg Nothing reason = "Error at some place\n" ++ reason
+
+wrongTypeMsg givenT expectT = "\nGiven type: " ++ (printType givenT) ++ ", expected: " ++ (printType expectT)
 
 -- Error reasons
-noVarMsg :: Ident -> String
-noVarMsg x = (show x) ++ " was not declared in this scope"
+noVarMsg (Ident x) = x ++ " was not declared in this scope"
 divZeroMsg = "Divide by zero"
-repeatedFunMsg f = "Repeated name of function in a global function definition. Function name: " ++ (show f)
-badMainTypeMsg t = "The type of main function is not Int. Given type: " ++ (show t)
+repeatedFunMsg (Ident f) = "Repeated name of function in a global function definition. Function name: " ++ f
+badMainTypeMsg givenT = "Wrong type of main function." ++ (wrongTypeMsg givenT (Int ()))
 argsMainMsg args = "There were given some arguments in main function definition. Given arguments: " ++ (show args)
 badRefArg (Ident f) t (Ident x) = "Wrong call of function " ++ f ++ ". Given argument could not be used as a reference. Parameter: " ++ (printType t) ++ " & " ++ x
-wrongTypeExprOneArg exprName givenT expectT = "Wrong type in expression \"" ++ exprName ++ "\". Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
-wrongTypeExprTwoArg exprName whichArg givenT expectT = "Wrong type in expression \"" ++ exprName ++ "\" in the" ++ whichArg ++ " argument. Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
-wrongTypeLambda exprStr retT expectT = "Wrong returned type in lambda expression: " ++ exprStr ++ ". Returned: " ++ (show retT) ++ ", expected: " ++ (show expectT)
-wrongArgNumb f = "Passed wrong number of arguments in function " ++ (show f)
-wrongPassedArg f argPos givenT expectT = "Passed wrong argument in function " ++ (show f) ++ "in " ++ (show argPos) ++ ". argument. Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
-notFunc x = "Variable " ++ (show x) ++ "is not a function"
+wrongTypeExprOneArg exprName givenT expectT = "Wrong type in expression \"" ++ exprName ++ "\"." ++ (wrongTypeMsg givenT expectT)
+wrongTypeExprTwoArg exprName whichArg givenT expectT = "Wrong type in expression \"" ++ exprName ++ "\" in the " ++ whichArg ++ " argument." ++ (wrongTypeMsg givenT expectT)
+wrongTypeLambda givenT expectT = "Wrong returned type in lambda expression." ++ (wrongTypeMsg givenT expectT)
+wrongArgNumb (Ident f) = "Passed wrong number of arguments in function " ++ f
+wrongPassedArg (Ident f) argPos givenT expectT = "Passed wrong argument in function " ++ f ++ "in " ++ (show argPos) ++ ". argument." ++ (wrongTypeMsg givenT expectT)
+notFunc (Ident x) = "Variable " ++ x ++ "is not a function"
 diffRet = "Returned values of different type in a function"
-wrongTypeStmtOneArg stmtStr givenT expectT = "Wrong type in statement \"" ++ stmtStr ++ "\". Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
-wrongTypeWhile givenT expectT = "Wrong type of condition expression in `while`. Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
-wrongTypeIf givenT expectT = "Wrong type of condition expression in `if`. Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
+wrongTypeStmtOneArg stmtName givenT expectT = "Wrong type in statement \"" ++ stmtName ++ "\"." ++ (wrongTypeMsg givenT expectT)
+wrongTypeWhile givenT expectT = "Wrong type of condition expression in `while`." ++ (wrongTypeMsg givenT expectT)
+wrongTypeIf givenT expectT = "Wrong type of condition expression in `if`." ++ (wrongTypeMsg givenT expectT)
 wrongTypeAss x givenT expectT = let (Just (line, column)) = hasPosition expectT in
-    "Wrong type of expression in assignment to var " ++ (show x) ++ " declared in line " ++ (show line) ++ ", column " ++ (show column) ++ ". Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
-wrongTypeInit exprStr givenT expectT = "Wrong type of expression in variable initialization, expr: " ++ exprStr ++ ". Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
+    "Wrong type of expression in assignment to var " ++ (show x) ++ " declared in line " ++ (show line) ++ ", column " ++ (show column) ++ ".\nGiven type: " ++ (printType givenT) 
+wrongTypeInit givenT expectT = "Wrong type of expression in variable initialization." ++ (wrongTypeMsg givenT expectT)
