@@ -54,12 +54,12 @@ putStrM :: String -> (StateT (ProgState a) (ExceptT Err IO)) ()
 putStrM s = lift $ (lift $ putStr s);
 
 -- if `isDiv` and `aExpr2` evaluates to 0 then throws exception
-evalArithm :: (Int -> Int -> Int) -> Expr -> Expr -> Bool -> EvalMonad Val Val
-evalArithm op aExpr1 aExpr2 isDiv = do {
+evalArithm :: BNFC'Position -> (Int -> Int -> Int) -> Expr -> Expr -> Bool -> EvalMonad Val Val
+evalArithm pos op aExpr1 aExpr2 isDiv = do {
   (VInt n1) <- evalExpr aExpr1;
   (VInt n2) <- evalExpr aExpr2;
   if isDiv && n2 == 0
-    then throwError(divZeroMsg);
+    then throwError (errorMsg pos divZeroMsg);
     else return (VInt (op n1 n2));
 }
 
@@ -90,7 +90,7 @@ compMultiExpr :: [Expr] -> [CompExpr] -> EvalMonad Val [CompExpr]
 compMultiExpr [] vals = return (reverse vals)
 compMultiExpr (exprH:exprT) vals = do {
   case exprH of
-    (EVar x) -> compMultiExpr exprT ((CVar x):vals);
+    (EVar _ x) -> compMultiExpr exprT ((CVar x):vals);
     otherwise -> do {
       v <- evalExpr exprH;
       compMultiExpr exprT ((CVal v):vals);
@@ -98,26 +98,26 @@ compMultiExpr (exprH:exprT) vals = do {
 }
 
 -- Returns local program state for a function (sets parameters to given arguments) 
-setParams :: [Arg] -> [CompExpr] -> (ProgState Val) -> EvalMonad Val (ProgState Val)
-setParams [] [] state = return state;
-setParams (argH:argT) (compH:compT) (env, store) = do {
+setParams :: BNFC'Position -> [Arg] -> [CompExpr] -> (ProgState Val) -> EvalMonad Val (ProgState Val)
+setParams _ [] [] state = return state;
+setParams pos (argH:argT) (compH:compT) (env, store) = do {
   case argH of
-    (ArgVal _ x) -> do {
+    (ArgVal _ _ x) -> do {
       newLoc <- return (alloc store);
       case compH of
-        (CVal val) -> setParams argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
+        (CVal val) -> setParams pos argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
         (CVar var) -> do {
-          val <- evalExpr (EVar var);
-          setParams argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
+          val <- evalExpr (EVar pos var);
+          setParams pos argT compT (Data.Map.insert x newLoc env, Data.Map.insert newLoc val store);
         }
     }
-    (ArgRef t x) -> do {
+    (ArgRef _ t x) -> do {
       case compH of
-        (CVal _) -> throwError (badRefArg t x);
+        (CVal _) -> throwError (errorMsg pos (badRefArg t x));
         (CVar var) -> do {
           (globEnv, _) <- get; 
           let (Just loc) = lookup var globEnv in
-            setParams argT compT (Data.Map.insert x loc env, store);
+            setParams pos argT compT (Data.Map.insert x loc env, store);
         }
     }
 }
@@ -136,79 +136,79 @@ evalScope stmt = do {
 
 evalExpr :: Expr -> EvalMonad Val Val
 
-evalExpr (EVar x) = do {
+evalExpr (EVar _ x) = do {
   (env, store) <- get;
   let (Just l) = lookup x env in
     return (store ! l);
 }
 
-evalExpr (ECallFunc f args) = do {
-  (VFunc ((argsDef, block), fEnv)) <- evalExpr (EVar f);
+evalExpr (ECallFunc pos f args) = do {
+  (VFunc ((argsDef, block), fEnv)) <- evalExpr (EVar pos f);
   vals <- compMultiExpr args [];
   (globEnv, store) <- get;
-  localState <- setParams argsDef vals (fEnv, store);
+  localState <- setParams pos argsDef vals (fEnv, store);
   put (localState);
-  (RVal v) <- evalStmt (BlockStmt block);
+  (RVal v) <- evalStmt (BlockStmt pos block);
   (_, newStore) <- get;
   put (globEnv, newStore);
   return v;
 }
 
-evalExpr (ELambda args _ block) = do {
+evalExpr (ELambda _ args _ block) = do {
   (env, _) <- get;
   return (VFunc ((args, block), env));
 }
 
 -- arithmetic expressions
 
-evalExpr (EInt n) = return (VInt (fromIntegral n))
+evalExpr (EInt _ n) = return (VInt (fromIntegral n))
 
-evalExpr (Neg aExpr) = do {
+evalExpr (Neg _ aExpr) = do {
   (VInt n) <- evalExpr aExpr;
   return (VInt (negate n));
 }
 
-evalExpr (EMul aExpr1 Times aExpr2) = evalArithm (*) aExpr1 aExpr2 False
+evalExpr (EMul pos aExpr1 (Times _) aExpr2) = evalArithm pos (*) aExpr1 aExpr2 False
 
-evalExpr (EMul aExpr1 Div aExpr2) = evalArithm div aExpr1 aExpr2 True
+evalExpr (EMul pos aExpr1 (Div _) aExpr2) = evalArithm pos div aExpr1 aExpr2 True
 
-evalExpr (EMul aExpr1 Mod aExpr2) = evalArithm mod aExpr1 aExpr2 True
+evalExpr (EMul pos aExpr1 (Mod _) aExpr2) = evalArithm pos mod aExpr1 aExpr2 True
 
-evalExpr (EAdd aExpr1 Plus aExpr2) = evalArithm (+) aExpr1 aExpr2 False
+evalExpr (EAdd pos aExpr1 (Plus _) aExpr2) = evalArithm pos (+) aExpr1 aExpr2 False
 
-evalExpr (EAdd aExpr1 Minus aExpr2) = evalArithm (-) aExpr1 aExpr2 False
+evalExpr (EAdd pos aExpr1 (Minus _) aExpr2) = evalArithm pos (-) aExpr1 aExpr2 False
 
 -- boolean expressions
 
-evalExpr ETrue = return (VBool True)
+evalExpr (ETrue _) = return (VBool True)
 
-evalExpr EFalse = return (VBool False)
+evalExpr (EFalse _) = return (VBool False)
 
-evalExpr (Not bExpr) = do {
+evalExpr (Not _ bExpr) = do {
   (VBool b) <- evalExpr bExpr;
   return (VBool (not b));
 }
 
-evalExpr (ERel aExpr1 LTH aExpr2) = evalRel (<) aExpr1 aExpr2
+evalExpr (ERel _ aExpr1 (LTH _) aExpr2) = evalRel (<) aExpr1 aExpr2
 
-evalExpr (ERel aExpr1 LE aExpr2) = evalRel (<=) aExpr1 aExpr2
+evalExpr (ERel _ aExpr1 (LE _) aExpr2) = evalRel (<=) aExpr1 aExpr2
 
-evalExpr (ERel aExpr1 GTH aExpr2) = evalRel (>) aExpr1 aExpr2
+evalExpr (ERel _ aExpr1 (GTH _) aExpr2) = evalRel (>) aExpr1 aExpr2
 
-evalExpr (ERel aExpr1 GE aExpr2) = evalRel (>=) aExpr1 aExpr2
+evalExpr (ERel _ aExpr1 (GE _) aExpr2) = evalRel (>=) aExpr1 aExpr2
 
-evalExpr (ERel aExpr1 EQU aExpr2) = evalRel (==) aExpr1 aExpr2
+evalExpr (ERel _ aExpr1 (EQU _) aExpr2) = evalRel (==) aExpr1 aExpr2
 
-evalExpr (ERel aExpr1 NE aExpr2) = evalRel (/=) aExpr1 aExpr2
+evalExpr (ERel _ aExpr1 (NE _) aExpr2) = evalRel (/=) aExpr1 aExpr2
 
-evalExpr (EAnd bExpr1 bExpr2) = evalBool (&&) bExpr1 bExpr2
+evalExpr (EAnd _ bExpr1 bExpr2) = evalBool (&&) bExpr1 bExpr2
 
-evalExpr (EOr bExpr1 bExpr2) = evalBool (||) bExpr1 bExpr2
+evalExpr (EOr _ bExpr1 bExpr2) = evalBool (||) bExpr1 bExpr2
 
 
 -- string expressions
 
-evalExpr (EString s) = return (VString s)
+evalExpr (EString _ s) = return (VString s)
 
 
 
@@ -216,65 +216,65 @@ evalExpr (EString s) = return (VString s)
 --------------- Function evaluating statements ---------------
 evalStmt :: Stmt -> EvalMonad Val RetObj
 
-evalStmt RetVoid = return (RVal VVoid)
+evalStmt (RetVoid _) = return (RVal VVoid)
 
-evalStmt (Ret expr) = do {
+evalStmt (Ret _ expr) = do {
   x <- evalExpr expr;
   return (RVal x);
 }
 
-evalStmt SEmpty = return NoRet
+evalStmt (SEmpty _) = return NoRet
 
-evalStmt (PrintStr sExpr) = do {
+evalStmt (PrintStr _ sExpr) = do {
   (VString s) <- evalExpr sExpr;
   putStrM s;
   return NoRet;
 }
 
-evalStmt (PrintInt aExpr) = do {
+evalStmt (PrintInt _ aExpr) = do {
   (VInt n) <- evalExpr aExpr;
   putStrM (show n);
   return NoRet;
 }
 
-evalStmt (StmtExpr expr) = do {
+evalStmt (StmtExpr _ expr) = do {
   evalExpr expr;
   return NoRet;
 }
 
-evalStmt (CallFunc f args) = do {
-  evalExpr (ECallFunc f args);
+evalStmt (CallFunc pos f args) = do {
+  evalExpr (ECallFunc pos f args);
   return NoRet;
 }
 
-evalStmt (While bExpr stmt) = do {
+evalStmt (While pos bExpr stmt) = do {
   (VBool b) <- evalExpr bExpr;
   if b
     then do {
       retObj <- evalScope stmt;
       case retObj of
-        NoRet -> evalStmt (While bExpr stmt);
+        NoRet -> evalStmt (While pos bExpr stmt);
         otherwise -> return retObj;
     }
     else
       return NoRet;
 }
 
-evalStmt (IfElse bExpr stmt1 stmt2) = do {
+evalStmt (IfElse _ bExpr stmt1 stmt2) = do {
   (VBool b) <- evalExpr bExpr;
   if b
     then evalScope stmt1;
     else evalScope stmt2;
 } 
 
-evalStmt (If bExpr stmt) = do {
+evalStmt (If _ bExpr stmt) = do {
   (VBool b) <- evalExpr bExpr;
   if b
     then evalScope stmt;
     else return NoRet;  
 }
 
-evalStmt (Ass x expr) = do {
+evalStmt (Ass _ x expr) = do {
   (env, _) <- get;
   let (Just l) = lookup x env in
     do {
@@ -285,24 +285,24 @@ evalStmt (Ass x expr) = do {
     }
 }
 
-evalStmt (VarDef t (NoInit x)) = do {
+evalStmt (VarDef _ t (NoInit _ x)) = do {
   (env, store) <- get;
   newLoc <- return (alloc store);
   put (Data.Map.insert x newLoc env, Data.Map.insert newLoc (NotInit t) store);
   return NoRet;
 }
 
-evalStmt (VarDef _ (Init x expr)) = do {
+evalStmt (VarDef _ _ (Init _ x expr)) = do {
   newState <- initVar x expr;
   put (newState);
   return NoRet;
 }
 
-evalStmt (BlockStmt (Block [])) = return NoRet;
-evalStmt (BlockStmt (Block (stmtH:stmtT))) = do {
+evalStmt (BlockStmt _ (Block _ [])) = return NoRet;
+evalStmt (BlockStmt posStmt (Block pos (stmtH:stmtT))) = do {
   retObj <- evalStmt stmtH;
   case retObj of
-    NoRet -> evalStmt (BlockStmt (Block stmtT));
+    NoRet -> evalStmt (BlockStmt posStmt (Block pos stmtT));
     otherwise -> return retObj;
 }
 
@@ -313,10 +313,10 @@ evalStmt (BlockStmt (Block (stmtH:stmtT))) = do {
 
 -- TypeChecker potentially checks if main function has a proper signature
 addFuncDef :: FuncDef -> EvalMonad Val ()
-addFuncDef (FuncDef t f args block) = do {
+addFuncDef (FuncDef pos t f args block) = do {
   (env, store) <- get;
   if member f env
-    then throwError(repeatedFunMsg f);
+    then throwError (errorMsg pos (repeatedFunMsg f));
     else do {
       newLoc <- return (alloc store);
       let newEnv = Data.Map.insert f newLoc env in
@@ -345,7 +345,7 @@ evalMain = do {
     Nothing -> return NoRet;
     (Just l) -> 
       let (Just (VFunc ((_, block), _))) = lookup l store in
-        evalStmt (BlockStmt block);
+        evalStmt (BlockStmt Nothing block);
 {-
 -- may be useful for typeChecker      
       case lookup l store of
@@ -359,7 +359,7 @@ evalMain = do {
 }
 
 evalProg :: Prog -> EvalMonad Val RetObj
-evalProg (Prog funcDefs) = do {
+evalProg (Prog _ funcDefs) = do {
   case funcDefs of
     [] -> do {
       setGlobalEnvs;
@@ -367,6 +367,6 @@ evalProg (Prog funcDefs) = do {
     }
     (hFuncDef:tFuncDef) -> do {
       addFuncDef hFuncDef;
-      evalProg (Prog tFuncDef);
+      evalProg (Prog Nothing tFuncDef);
     }
 }

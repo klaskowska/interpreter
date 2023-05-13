@@ -1,7 +1,10 @@
 module Exception where
 import AbsGrammar
 
--- Error messages
+errorMsg (Just (line, column)) reason = "Error in line " ++ (show line) ++ ", column " ++ (show column) ++ "\n" ++ reason 
+errorMsg Nothing reason = "Error in line at some place\n" ++ reason 
+
+-- Error reasons
 noVarMsg :: Ident -> String
 noVarMsg x = (show x) ++ " was not declared in this scope"
 divZeroMsg = "Divide by zero"
