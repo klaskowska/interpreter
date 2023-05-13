@@ -1,0 +1,2 @@
+Error around line 6, column 5
+Wrong call of function f. Given argument could not be used as a reference. Parameter: int & x

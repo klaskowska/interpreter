@@ -1,0 +1,16 @@
+return 2;
+return "d";
+
+
+
+
+
+
+int a(int x) {
+    if (x <2)
+        int s;
+    else
+        string s;
+        
+    s = 4;
+}

@@ -1,6 +1,17 @@
 module Exception where
 import AbsGrammar
 
+printType :: Type' a -> String
+printType (Int _) = "int"
+printType (Str _) = "string"
+printType (Bool _) = "bool"
+printType (Void _) = "void"
+printType (FuncType _ retT argTs) = "function <" ++ (printType retT) ++ "> (" ++ printTypes argTs ++ ")"
+
+printTypes :: [Type' a] -> String
+printTypes types = let typeListStr = show (map (\t -> printType t) types) in
+    take (-1) (drop 1 typeListStr)
+
 errorMsg (Just (line, column)) reason = "Error around line " ++ (show line) ++ ", column " ++ (show column) ++ "\n" ++ reason 
 errorMsg Nothing reason = "Error at some place\n" ++ reason 
 
@@ -11,7 +22,7 @@ divZeroMsg = "Divide by zero"
 repeatedFunMsg f = "Repeated name of function in a global function definition. Function name: " ++ (show f)
 badMainTypeMsg t = "The type of main function is not Int. Given type: " ++ (show t)
 argsMainMsg args = "There were given some arguments in main function definition. Given arguments: " ++ (show args)
-badRefArg t x = "Given argument could not be used as a reference. Parameter: " ++ (show t) ++ " " ++ (show x)
+badRefArg (Ident f) t (Ident x) = "Wrong call of function " ++ f ++ ". Given argument could not be used as a reference. Parameter: " ++ (printType t) ++ " & " ++ x
 wrongTypeExprOneArg exprName givenT expectT = "Wrong type in expression \"" ++ exprName ++ "\". Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
 wrongTypeExprTwoArg exprName whichArg givenT expectT = "Wrong type in expression \"" ++ exprName ++ "\" in the" ++ whichArg ++ " argument. Given type: " ++ (show givenT) ++ ", expected: " ++ (show expectT)
 wrongTypeLambda exprStr retT expectT = "Wrong returned type in lambda expression: " ++ exprStr ++ ". Returned: " ++ (show retT) ++ ", expected: " ++ (show expectT)
