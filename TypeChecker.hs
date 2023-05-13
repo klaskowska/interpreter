@@ -1,5 +1,6 @@
 -- TODO:
 -- 1. W wyrażeniach jednak możesz robić generyczne sprawdzanie typów, bo starczy t == t1 zamiast case of
+-- 2. sprawdź sygnaturę main
 
 module TypeChecker where
 
@@ -16,8 +17,9 @@ import AbsGrammar
 type Var = Ident
 type Err = String
 type Env = Map Var Type
+type TType = Type' ()
 -- Object which can be returned by statement
-data RetObj = RType Type | NoRet
+data RetObj = RType TType | NoRet
 
 -- A monad used to evaluate type of program components
 type EvalTypeMonad a = (StateT Env (ExceptT Err IO)) a
@@ -29,34 +31,50 @@ runEvalTypeMonad v env = (runExceptT (runStateT v env))
 
 ----------------------- Helper functions -----------------------
 
+typeToTType :: Type' a -> TType
+typeToTType (Int _) = Int ()
+typeToTType (Str _) = Str ()
+typeToTType (Bool _) = Bool ()
+typeToTType (Void _) = Void ()
+typeToTType (FuncType _ retT argTs) = 
+  FuncType () (typeToTType retT) (Prelude.map (\t -> typeToTType t) argTs)
+
+eqType :: Type' a -> Type' b -> Bool
+eqType (Int _) (Int _) = True
+eqType (Str _) (Str _) = True
+eqType (Bool _) (Bool _) = True
+eqType (Void _) (Void _) = True
+eqType (FuncType _ retT1 argTs1) (FuncType _ retT2 argTs2) = 
+  eqType retT1 retT2 && (length argTs1) == (length argTs2) &&
+    (and $ zipWith eqType argTs1 argTs2)
 
 -- Evaluates type for expressions which are expected to take
 -- two expressions of type Int as arguments and return value of type `retType`
-evalExprTypeArithm :: Expr -> Expr -> Type -> String -> EvalTypeMonad Type
-evalExprTypeArithm arg1 arg2 retType exprStr = do {
+evalExprTypeArithm :: BNFC'Position -> Expr -> Expr -> TType -> String -> EvalTypeMonad TType
+evalExprTypeArithm pos arg1 arg2 retType exprName = do {
   t1 <- evalExprType arg1;
   t2 <- evalExprType arg2;
   case (t1, t2) of
-    (Int, Int) -> return retType
-    (Int, _) -> throwError (wrongTypeExprTwoArg exprStr "second" t2 Int)
-    otherwise -> throwError (wrongTypeExprTwoArg exprStr "first" t1 Int)
+    (Int _, Int _) -> return retType
+    (Int _, _) -> throwError (errorMsg pos (wrongTypeExprTwoArg exprName "second" t2 (Int ())))
+    otherwise -> throwError (errorMsg pos (wrongTypeExprTwoArg exprName "first" t1 (Int ())))
 }
 
 -- Evaluates type for expressions which are expected to take
 -- two expressions of type Bool as arguments and return value of type Bool
-evalExprTypeBool :: Expr -> Expr -> String -> EvalTypeMonad Type
-evalExprTypeBool arg1 arg2 exprStr = do {
+evalExprTypeBool :: BNFC'Position -> Expr -> Expr -> String -> EvalTypeMonad TType
+evalExprTypeBool pos arg1 arg2 exprName = do {
   t1 <- evalExprType arg1;
   t2 <- evalExprType arg2;
   case (t1, t2) of
-    (Bool, Bool) -> return Bool
-    (Bool, _) -> throwError (wrongTypeExprTwoArg exprStr "second" t2 Bool)
-    otherwise -> throwError (wrongTypeExprTwoArg exprStr "first" t1 Bool)
+    (Bool _, Bool _) -> return (Bool ())
+    (Bool _, _) -> throwError (errorMsg pos (wrongTypeExprTwoArg exprName "second" t2 (Bool ())))
+    otherwise -> throwError (errorMsg pos (wrongTypeExprTwoArg exprName "first" t1 (Bool ())))
 }
 
 unpackArg :: Arg -> (Type, Var)
-unpackArg (ArgVal t x) = (t, x)
-unpackArg (ArgRef t x) = (t, x)
+unpackArg (ArgVal _ t x) = (t, x)
+unpackArg (ArgRef _ t x) = (t, x)
 
 argsToTypes :: [Arg] -> [Type]
 argsToTypes args = Prelude.map (\ arg -> fst (unpackArg arg)) args
@@ -72,23 +90,23 @@ setParams (argH:argT) = do {
 
 -- Checks if types of expressions match expected types
 -- Assumes that given lists are the same length
-checkTypesList :: [Expr] -> [Type] -> Ident -> Int -> EvalTypeMonad ()
-checkTypesList [] [] _ _ = return ()
-checkTypesList (exprH:exprT) (typeH:typeT) f argPos = do {
+checkTypesList :: BNFC'Position -> [Expr] -> [TType] -> Ident -> Int -> EvalTypeMonad ()
+checkTypesList _ [] [] _ _ = return ()
+checkTypesList pos (exprH:exprT) (typeH:typeT) f argPos = do {
   exprType <- evalExprType exprH;
-  if exprType /= typeH
-    then throwError (wrongPassedArg f argPos exprType typeH);
-    else checkTypesList exprT typeT f (argPos + 1);
+  if exprType == typeH
+    then checkTypesList pos exprT typeT f (argPos + 1);
+    else throwError (errorMsg pos (wrongPassedArg f argPos exprType typeH));
 }
 
 -- Return type based on types returned in two statements
-retType :: RetObj -> RetObj -> EvalTypeMonad RetObj
-retType NoRet t = return t;
-retType t NoRet = return t;
-retType (RType t1) (RType t2) = do {
+retType :: BNFC'Position -> RetObj -> RetObj -> EvalTypeMonad RetObj
+retType _ NoRet t = return t;
+retType _ t NoRet = return t;
+retType pos (RType t1) (RType t2) = do {
   if t1 == t2
     then return (RType t1);
-    else throwError (diffRet);
+    else throwError (errorMsg pos diffRet);
 }
 
 -- Evaluates statement, but leaves environment whitout variables declared in this statement
@@ -101,216 +119,219 @@ evalScopeType stmt = do {
 }
 
 -- Returns type which should be returned at the end of function
-finalRetType :: RetObj -> Type
+finalRetType :: RetObj -> TType
 finalRetType retObj = 
   case retObj of
-    NoRet -> Void
+    NoRet -> Void ()
     (RType t) -> t
 
 -- Checks types for statements in a function body when `args` are added to the environment
 -- and checks if function returns value of type `t`
-checkFuncBody :: [Arg] -> Type -> Block -> EvalTypeMonad ()
-checkFuncBody args t block = do {
+checkFuncBody :: BNFC'Position -> [Arg] -> Type -> Block -> EvalTypeMonad ()
+checkFuncBody pos args t block = do {
   globalEnv <- get;
   setParams args;
-  retObj <- evalStmtType (BlockStmt block);
+  retObj <- evalStmtType (BlockStmt pos block);
   let retType = finalRetType retObj in
-    if retType /= t
-      then throwError (wrongTypeLambda (show block) retType t);
-      else put globalEnv;
+    if eqType retType t
+      then put globalEnv;
+      else throwError (errorMsg pos (wrongTypeLambda (show block) retType t));     
 }
 
 --------------- Type checker for expressions ---------------
 
-evalExprType :: Expr -> EvalTypeMonad Type
+evalExprType :: Expr -> EvalTypeMonad TType
 
-evalExprType (EVar x) = do {
+evalExprType (EVar pos x) = do {
   env <- get;
   case lookup x env of
-    (Just t) -> return t;
-    _ -> throwError(noVarMsg x);
+    (Just t) -> return (typeToTType t);
+    _ -> throwError (errorMsg pos (noVarMsg x));
 }
 
-evalExprType (ECallFunc f args) = do {
-  fType <- evalExprType (EVar f);
+evalExprType (ECallFunc pos f args) = do {
+  fType <- evalExprType (EVar pos f);
   case fType of
-    (FuncType retType argTypes) -> do {
+    (FuncType () retType argTypes) -> do {
       if (length args) /= (length argTypes)
-        then throwError (wrongArgNumb f);
+        then throwError (errorMsg pos (wrongArgNumb f));
         else do {
-          checkTypesList args argTypes f 1;
+          checkTypesList pos args argTypes f 1;
           return retType;
         }
     }
-    otherwise -> throwError (notFunc f);
+    otherwise -> throwError (errorMsg pos (notFunc f));
 }
 
-evalExprType (ELambda args t block) = do {
-  checkFuncBody args t block;
-  return (FuncType t (argsToTypes args));
+evalExprType (ELambda pos args t block) = do {
+  checkFuncBody pos args t block;
+  let argTypes = argsToTypes args in
+    let argTTypes = Prelude.map (\argT -> typeToTType argT) argTypes in
+      return (FuncType () (typeToTType t) argTTypes);
 }
 
 -- arithmetic expressions
 
-evalExprType (EInt _) = return Int
+evalExprType (EInt _ _) = return (Int ())
 
-evalExprType (Neg expr) = do {
+evalExprType (Neg pos expr) = do {
   t <- evalExprType expr;
   case t of
-    Int -> return Int
-    otherwise -> throwError (wrongTypeExprOneArg (show (Neg expr)) t Int)
+    (Int _) -> return (Int ())
+    otherwise -> throwError (errorMsg pos (wrongTypeExprOneArg "negation" t (Int ())))
 }
 
-evalExprType (EMul expr1 op expr2) = evalExprTypeArithm expr1 expr2 Int (show (EMul expr1 op expr2))
+evalExprType (EMul pos expr1 op expr2) = evalExprTypeArithm pos expr1 expr2 (Int ()) (show op)
 
-evalExprType (EAdd expr1 op expr2) = evalExprTypeArithm expr1 expr2 Int (show (EAdd expr1 op expr2))
+evalExprType (EAdd pos expr1 op expr2) = evalExprTypeArithm pos expr1 expr2 (Int ()) (show op)
 
 
 -- boolean expressions
 
-evalExprType ETrue = return Bool
+evalExprType (ETrue _) = return (Bool ())
 
-evalExprType EFalse = return Bool
+evalExprType (EFalse _) = return (Bool ())
 
-evalExprType (Not expr) = do {
+evalExprType (Not pos expr) = do {
   t <- evalExprType expr;
   case t of
-    Bool -> return Bool
-    otherwise -> throwError (wrongTypeExprOneArg (show (Not expr)) t Bool)
+    (Bool _) -> return (Bool ())
+    otherwise -> throwError (errorMsg pos (wrongTypeExprOneArg "not" t (Bool ())))
 }
 
-evalExprType (ERel expr1 op expr2) = evalExprTypeArithm expr1 expr2 Bool (show (ERel expr1 op expr2))
+evalExprType (ERel pos expr1 op expr2) = evalExprTypeArithm pos expr1 expr2 (Bool ()) (show op)
 
-evalExprType (EAnd expr1 expr2) = evalExprTypeBool expr1 expr2 (show (EAnd expr1 expr2))
+evalExprType (EAnd pos expr1 expr2) = evalExprTypeBool pos expr1 expr2 "and"
 
-evalExprType (EOr expr1 expr2) = evalExprTypeBool expr1 expr2 (show (EOr expr1 expr2))
+evalExprType (EOr pos expr1 expr2) = evalExprTypeBool pos expr1 expr2 "or"
 
 
 -- string expressions
 
-evalExprType (EString s) = return Str
+evalExprType (EString _ s) = return (Str ())
 
 
 --------------- Function evaluating statements ---------------
 evalStmtType :: Stmt -> EvalTypeMonad RetObj
 
-evalStmtType RetVoid = return (RType Void)
+evalStmtType (RetVoid _) = return (RType (Void ()))
 
-evalStmtType (Ret expr) = do {
+evalStmtType (Ret _ expr) = do {
   t <- evalExprType expr;
   return (RType t);
 }
 
-evalStmtType SEmpty = return NoRet
+evalStmtType (SEmpty _) = return NoRet
 
-evalStmtType (PrintStr expr) = do {
+evalStmtType (PrintStr pos expr) = do {
   t <- evalExprType expr;
   case t of
-    Str -> return NoRet;
-    otherwise -> throwError (wrongTypeStmtOneArg (show (PrintStr expr)) t Str)
+    (Str _) -> return NoRet;
+    otherwise -> throwError (errorMsg pos (wrongTypeStmtOneArg (show (PrintStr pos expr)) t (Str ())))
 }
 
-evalStmtType (PrintInt expr) = do {
+evalStmtType (PrintInt pos expr) = do {
   t <- evalExprType expr;
   case t of
-    Int -> return NoRet;
-    otherwise -> throwError (wrongTypeStmtOneArg (show (PrintInt expr)) t Int)
+    (Int _) -> return NoRet;
+    otherwise -> throwError (errorMsg pos (wrongTypeStmtOneArg (show (PrintInt pos expr)) t (Int ())))
 }
 
-evalStmtType (StmtExpr expr) = do {
+evalStmtType (StmtExpr _ expr) = do {
   evalExprType expr;
   return NoRet;
 }
 
-evalStmtType (CallFunc f args) = do {
-  evalExprType (ECallFunc f args);
+evalStmtType (CallFunc pos f args) = do {
+  evalExprType (ECallFunc pos f args);
   return NoRet;
 }
 
-evalStmtType (While expr stmt) = do {
+evalStmtType (While pos expr stmt) = do {
   exprType <- evalExprType expr;
-  if exprType /= Bool
-    then throwError (wrongTypeWhile (show expr) exprType Bool);
+  if exprType /= Bool ()
+    then throwError (errorMsg pos (wrongTypeWhile exprType (Bool ())));
     else evalScopeType stmt;
 }
 
-evalStmtType (IfElse expr stmt1 stmt2) = do {
+evalStmtType (IfElse pos expr stmt1 stmt2) = do {
   exprType <- evalExprType expr;
-  if exprType /= Bool
-    then throwError (wrongTypeIf (show expr) exprType Bool);
+  if exprType /= Bool ()
+    then throwError (errorMsg pos (wrongTypeIf exprType (Bool ())));
     else do {
       t1 <- evalScopeType stmt1;
       t2 <- evalScopeType stmt2;
-      retType t1 t2;
+      retType pos t1 t2;
     }
 } 
 
-evalStmtType (If expr stmt) = do {
+evalStmtType (If pos expr stmt) = do {
   exprType <- evalExprType expr;
-  if exprType /= Bool
-    then throwError (wrongTypeIf (show expr) exprType Bool);
+  if exprType /= Bool ()
+    then throwError (errorMsg pos (wrongTypeIf exprType (Bool ())));
     else evalScopeType stmt;
 }
 
-evalStmtType (Ass x expr) = do {
+evalStmtType (Ass pos x expr) = do {
   env <- get;
   case lookup x env of
     (Just t) -> do {
       exprType <- evalExprType expr;
-      if t /= exprType
-        then throwError (wrongTypeAss (show expr) exprType t);
-        else return NoRet;
+      if eqType t exprType
+        then return NoRet;
+        else throwError (errorMsg pos (wrongTypeAss (show expr) exprType t));
     }
-    _ -> throwError(noVarMsg x);
+    _ -> throwError (errorMsg pos (noVarMsg x));
 }
 
-evalStmtType (VarDef t (NoInit x)) = do {
+evalStmtType (VarDef _ t (NoInit _ x)) = do {
   env <- get;
   put (Data.Map.insert x t env);
   return NoRet;
 }
 
-evalStmtType (VarDef t (Init x expr)) = do {
+evalStmtType (VarDef pos t (Init _ x expr)) = do {
   exprType <- evalExprType expr;
-  if exprType /= t
-    then throwError (wrongTypeInit (show expr) exprType t);
-    else do {
+  if eqType exprType t
+    then do {
       env <- get;
       put (Data.Map.insert x t env);
       return NoRet;
     }
+    else throwError (errorMsg pos (wrongTypeInit (show expr) exprType t));
+
 }
 
-evalStmtType (BlockStmt (Block [])) = return NoRet;
-evalStmtType (BlockStmt (Block (stmtH:stmtT))) = do {
+evalStmtType (BlockStmt _ (Block _ [])) = return NoRet;
+evalStmtType (BlockStmt pos (Block _ (stmtH:stmtT))) = do {
   retObjH <- evalStmtType stmtH;
-  retObjT <- evalStmtType (BlockStmt (Block stmtT));
-  retType retObjH retObjT;
+  retObjT <- evalStmtType (BlockStmt pos (Block pos stmtT));
+  retType pos retObjH retObjT;
 }
 
 
 --------------- Functions evaluating program types ---------------
 addFuncDefs :: [FuncDef] -> EvalTypeMonad ()
 addFuncDefs [] = return ()
-addFuncDefs ((FuncDef t f args _):funcT) = do {
+addFuncDefs ((FuncDef pos t f args _):funcT) = do {
   env <- get;
   if member f env
-    then throwError (repeatedFunMsg f);
+    then throwError (errorMsg pos (repeatedFunMsg f));
     else do {
-      put (Data.Map.insert f (FuncType t (argsToTypes args)) env);
+      put (Data.Map.insert f (FuncType pos t (argsToTypes args)) env);
       addFuncDefs funcT;
     }
 }
 
 checkFuncBodies :: [FuncDef] -> EvalTypeMonad ()
 checkFuncBodies [] = return ();
-checkFuncBodies ((FuncDef t _ args stmt):funcT) = do {
-  checkFuncBody args t stmt;
+checkFuncBodies ((FuncDef pos t _ args stmt):funcT) = do {
+  checkFuncBody pos args t stmt;
   checkFuncBodies funcT;
 }
 
 evalProgType :: Prog -> EvalTypeMonad ()
-evalProgType (Prog funcDefs) = do {
+evalProgType (Prog _ funcDefs) = do {
   addFuncDefs funcDefs;
   checkFuncBodies funcDefs;
 }
