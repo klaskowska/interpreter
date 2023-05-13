@@ -349,16 +349,6 @@ evalMain = do {
     (Just l) -> 
       let (Just (VFunc ((_, block), _))) = lookup l store in
         evalStmt (BlockStmt Nothing block);
-{-
--- may be useful for typeChecker      
-      case lookup l store of
-      (Just (VFunc (FuncDef Int _ [] block, _))) ->
-        evalStmt (BlockStmt block);
-      (Just (VFunc (FuncDef Int _ args _, _))) ->
-        throwError(argsMainMsg args);
-      (Just (VFunc (FuncDef t _ _ _, _))) ->
-        throwError(badMainTypeMsg t);  
--}
 }
 
 evalProg :: Prog -> EvalMonad Val RetObj

@@ -327,13 +327,20 @@ evalStmtType (BlockStmt pos (Block _ (stmtH:stmtT))) = do {
 
 
 --------------- Functions evaluating program types ---------------
+checkMain :: FuncDef -> EvalTypeMonad ()
+checkMain (FuncDef _ (Int _) (Ident "main") [] _) = return ()
+checkMain (FuncDef pos (Int _) (Ident "main") _ _) = throwError (errorMsg pos argsMainMsg)
+checkMain (FuncDef pos t (Ident "main") _ _) = throwError (errorMsg pos (badMainTypeMsg t))
+checkMain f = return ()
+
 addFuncDefs :: [FuncDef] -> EvalTypeMonad ()
 addFuncDefs [] = return ()
-addFuncDefs ((FuncDef pos t f args _):funcT) = do {
+addFuncDefs ((FuncDef pos t f args block):funcT) = do {
   env <- get;
   if member f env
     then throwError (errorMsg pos (repeatedFunMsg f));
     else do {
+      checkMain (FuncDef pos t f args block);
       put (Data.Map.insert f (FuncType pos t (argsToTypes args)) env);
       addFuncDefs funcT;
     }
