@@ -12,6 +12,7 @@ printTypes :: [Type' a] -> String
 printTypes types = let typeListStr = show (map (\t -> printType t) types) in
     take (-1) (drop 1 typeListStr)
 
+errorMsg :: BNFC'Position -> String -> String
 errorMsg (Just (line, column)) reason = "Error around line " ++ (show line) ++ ", column " ++ (show column) ++ "\n" ++ reason
 errorMsg Nothing reason = "Error at some place\n" ++ reason
 

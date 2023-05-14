@@ -7,6 +7,7 @@ HAPPY      = happy
 HAPPY_OPTS = --array --info --ghc --coerce
 ALEX       = alex
 ALEX_OPTS  = --ghc
+BNFC       = /home/students/inf/PUBLIC/MRJP/bin/bnfc
 
 # List of goals not corresponding to file names.
 
@@ -19,7 +20,7 @@ all : TestGrammar interpreter
 # Rules for building the parser.
 
 AbsGrammar.hs LexGrammar.x ParGrammar.y PrintGrammar.hs TestGrammar.hs : Grammar.cf
-	/home/students/inf/PUBLIC/MRJP/bin/bnfc --haskell --functor Grammar.cf
+	${BNFC} --haskell --functor Grammar.cf
 
 %.hs : %.y
 	${HAPPY} ${HAPPY_OPTS} $<

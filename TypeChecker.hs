@@ -1,17 +1,11 @@
--- TODO:
--- 1. W wyrażeniach jednak możesz robić generyczne sprawdzanie typów, bo starczy t == t1 zamiast case of
--- 2. sprawdź sygnaturę main
-
 module TypeChecker where
 
 import Prelude hiding (lookup)
 import Data.Map
-import Control.Monad.Reader
 import Control.Monad.Except
 import Control.Monad.Identity
 import Control.Monad.State
 import Exception
-import ParGrammar
 import AbsGrammar
 
 type Var = Ident

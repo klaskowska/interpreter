@@ -1,0 +1,14 @@
+int f() {
+    return 2;
+}
+
+string g() {
+    return "a";
+}
+
+int main() {
+    int a = f();
+    string s = g();
+
+    return 0;
+}

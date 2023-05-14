@@ -17,8 +17,6 @@ getSyntaxTree filename = do
   s <- hGetContents handle
   return (pProg $ myLexer s)
 
-
-
 runInterpreter :: FilePath -> IO (Either String ())
 runInterpreter filename = do
   prog <- getSyntaxTree filename

@@ -1,28 +1,12 @@
--- TODO
--- 1. Generalize arithmetic operations
--- 3. Remeber to check if NotInit matches assinging in type checker
--- 5. Think about checking if return has been used (for now there is a haskell error when nothing is returned)
--- 6. Line numbers in error messages
--- 7. Free space in Store
--- 8. Change VFunc (Func, Env) -> VFunc Func Env
--- 9. Check if var is not NotInit and make NotInit without parameters
--- 10. Remove Common.h
--- 11. Replace a -> Val in EvalMonad
-
 module Evaluation where
 
 import Prelude hiding (lookup)
 import Data.Map
-import Control.Monad.Reader
 import Control.Monad.Except
 import Control.Monad.Identity
 import Control.Monad.State
-
-import ParGrammar
 import AbsGrammar
 import Exception
-
--- Types used in interpreter
 
 type Var = Ident
 type Err = String
@@ -38,7 +22,7 @@ data RetObj = RVal Val | NoRet
 -- (getting value of CompExpr won't change program's state)
 data CompExpr = CVal Val | CVar Ident
 
--- A monad used to evaluate program components
+-- A monad used in program components evaluation
 type EvalMonad a b = (StateT (ProgState a) (ExceptT Err IO)) b
 
 -- Exacutes expression evaluation and returns unpacked value
@@ -77,15 +61,8 @@ evalBool op bExpr1 bExpr2 = do {
   return (VBool (op b1 b2));
 }
 
--- TODO: check if this function is used in more than one place
-initVar :: Ident -> Expr -> EvalMonad Val (Env, Store Val)
-initVar x expr = do {
-  v <- evalExpr expr;
-  (env, store) <- get;
-  newLoc <- return (alloc store);
-  return (Data.Map.insert x newLoc env, Data.Map.insert newLoc v store);
-}
-
+-- Computes list of expressions; 
+-- expression can evaluate to value or stay as variable
 compMultiExpr :: [Expr] -> [CompExpr] -> EvalMonad Val [CompExpr]
 compMultiExpr [] vals = return (reverse vals)
 compMultiExpr (exprH:exprT) vals = do {
@@ -133,7 +110,6 @@ evalScope stmt = do {
 }
 
 --------------- Function evaluating expressions ---------------
-
 evalExpr :: Expr -> EvalMonad Val Val
 
 evalExpr (EVar pos x) = do {
@@ -296,8 +272,10 @@ evalStmt (VarDef _ t (NoInit _ x)) = do {
 }
 
 evalStmt (VarDef _ _ (Init _ x expr)) = do {
-  newState <- initVar x expr;
-  put (newState);
+  v <- evalExpr expr;
+  (env, store) <- get;
+  newLoc <- return (alloc store);
+  put (Data.Map.insert x newLoc env, Data.Map.insert newLoc v store);
   return NoRet;
 }
 
@@ -308,8 +286,6 @@ evalStmt (BlockStmt posStmt (Block pos (stmtH:stmtT))) = do {
     NoRet -> evalStmt (BlockStmt posStmt (Block pos stmtT));
     otherwise -> return retObj;
 }
-
-
 
 
 --------------- Functions evaluating programs ---------------

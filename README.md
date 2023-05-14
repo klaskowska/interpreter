@@ -40,3 +40,28 @@ Poniżej opisuję najważniejsze oraz nietypowe konstrukcje.
 18. W `while` oraz `if` najpierw obliczamy typ warunku i sprawdzamy, czy się zgadza, a następnie obliczamy typ instrukcji.
 19. Przy przypisywaniu wartości na zmienną najpierw sprawdzamy, czy dana zmienna została zadeklarowana, a następnie sprawdzamy, czy typ wyrażenia jest odpowiedni.
 20. Funkcje nie mogą się nazywać słówkami kluczowymi, tj. print_int, print_str, calc, if, while, return, True, False, int, string, bool, void, function.
+
+---
+## Tabelka cech
+Na 15 punktów  
+\+  01 (trzy typy)  
+\+  02 (literały, arytmetyka, porównania)  
+\+  03 (zmienne, przypisanie)  
+\+  04 (print)  
+\+  05 (while, if)  
+\+  06 (funkcje lub procedury, rekurencja)  
+\+  07 (przez zmienną / przez wartość / in/out) ← przez zmienną / przez wartość  
+\-  08 (zmienne read-only i pętla for)  
+Na 20 punktów  
+\+  09 (przesłanianie i statyczne wiązanie) ← zagnieżdżone funkcje  
+\+  10 (obsługa błędów wykonania)  
+\+  11 (funkcje zwracające wartość)  
+Na 30 punktów  
+\+  12 (4) (statyczne typowanie)  
+\+  13 (2) (funkcje zagnieżdżone ze statycznym wiązaniem)  
+\-  14 (1/2) (rekordy/listy/tablice/tablice wielowymiarowe)  
+\-  15 (2) (krotki z przypisaniem)  
+\-  16 (1) (break, continue)  
+\+  17 (4) (funkcje wyższego rzędu, anonimowe, domknięcia)  
+\-  18 (3) (generatory)  
+Razem: 30
